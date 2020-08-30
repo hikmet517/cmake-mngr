@@ -13,6 +13,7 @@
 (defvar cmake-mngr-projects (list)
   "Currently opened cmake projects.")
 
+
 ;;;; User options
 (defgroup cmake-mngr nil
   "Cmake-mngr customization."
@@ -21,16 +22,18 @@
   :link '(url-link "https://github.com/hikmet517/cmake-mngr.el"))
 
 (defcustom cmake-mngr-build-dir-search-list '("build" "bin" "out")
-  "List of directories to search for cmake build directory."
-  :type 'directory
+  "List of directories to search for cmake build directory.
+Should be non-nil."
+  :type '(repeat directory)
   :group 'cmake-mngr)
 
 (defcustom cmake-mngr-global-configure-args '("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
-  "Argument to pass during configure."
-  :type 'string
+  "Argument to pass during configuration."
+  :type '(repeat string)
   :group 'cmake-mngr)
 
 
+;;;; Functions
 (defun cmake-mngr--parse-cache-file (filepath)
   "Parse given CMakeCache.txt file in FILEPATH as '(key type value)."
   (when (file-readable-p filepath)
@@ -88,7 +91,6 @@ selects this.  Otherwise, selects the first directory in the list."
 If it already found before (added to `cmake-mngr-projects') returns
 this.  Otherwise, searches directory structure of current buffer.  If
 found data is added `cmake-mngr-projects', otherwise returns nil."
-  (interactive)
   (let* ((filepath (buffer-file-name))
          (project-data (when filepath
                          (cdr (assoc
@@ -160,23 +162,16 @@ found data is added `cmake-mngr-projects', otherwise returns nil."
 (defun cmake-mngr-select-build-type ()
   "Get cmake build type from user."
   (interactive)
-   (let ((project (cmake-mngr--get-project)))
-     (unless project
-       (error "Cannot find cmake project for this file"))
-     (let ((type (call-interactively (lambda (c)
-                                       (interactive
-                                        (list (completing-read
-                                               "Select cmake build type: "
-                                               '("Debug"
-                                                 "Release"
-                                                 "MinSizeRel"
-                                                 "RelWithDebInfo")
-                                               nil
-                                               t)))
-                                       c)))
-           (custom (gethash "Custom Vars" project)))
-       (when (and custom type)
-         (puthash "CMAKE_BUILD_TYPE" type custom)))))
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let ((type (completing-read "Select cmake build type: "
+                                 '("Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+                                 nil
+                                 t))
+          (custom (gethash "Custom Vars" project)))
+      (when (and custom type)
+        (puthash "CMAKE_BUILD_TYPE" type custom)))))
 
 
 (defun cmake-mngr-set-build-directory ()
@@ -185,18 +180,18 @@ found data is added `cmake-mngr-projects', otherwise returns nil."
   (let ((project (cmake-mngr--get-project)))
     (unless project
       (error "Cannot find cmake project for this file"))
-    (let ((choice (call-interactively (lambda (c)
-                                      (interactive
-                                       (list (completing-read
-                                              "Select cmake build directory: "
-                                              cmake-mngr-build-dir-search-list
-                                              nil
-                                              t)))
-                                      c)))
-          (proj-dir (gethash "Project Dir" project)))
+    (let* ((proj-dir (gethash "Project Dir" project))
+           (build-dir (gethash "Build Dir" project))
+           (build-dir-name (directory-file-name (string-trim-left build-dir proj-dir)))
+           (choice (completing-read
+                    (format "Select cmake build directory (default %s): "
+                            build-dir-name) ;; PROMPT
+                    cmake-mngr-build-dir-search-list ;; COLLECTION
+                    nil nil nil nil ;; PREDICATE REQUIRE-MATCH INITIAL-INPUT HIST
+                    build-dir-name ;; DEF
+                    )))
       (when (and proj-dir choice)
-        (puthash "Build Dir" choice proj-dir)))))
-
+        (puthash "Build Dir" (concat proj-dir choice) project)))))
 
 
 (defun cmake-mngr-set-variable ()
@@ -206,23 +201,11 @@ found data is added `cmake-mngr-projects', otherwise returns nil."
     (unless project
       (error "Cannot find cmake project for this file"))
     (let* ((vars (gethash "Cache Vars" project))
-           (key (call-interactively
-                 (lambda (k)
-                   (interactive
-                    (list (completing-read "Variable: "
-                                           (when vars (hash-table-keys vars))
-                                           nil
-                                           nil)))
-                   k)))
+           (key (completing-read "Variable: "
+                                 (when vars (hash-table-keys vars))))
            (dflt (when (and vars key) (gethash key vars)))
-           (val (call-interactively
-                 (lambda (v)
-                   (interactive
-                    (list (completing-read "Value: "
-                                           (when dflt (list dflt))
-                                           nil
-                                           nil)))
-                   v))))
+           (val (completing-read "Value: "
+                                 (when dflt (list dflt)))))
       (let ((custom (gethash "Custom Vars" project)))
         (when (and custom key val)
           (puthash key val custom))))))
@@ -236,3 +219,9 @@ found data is added `cmake-mngr-projects', otherwise returns nil."
 (provide 'cmake-mngr)
 
 ;;; cmake-mngr.el ends here
+
+
+;; random tests
+;;
+;; (gethash "Build Dir" (cdar cmake-mngr-projects))
+;;
