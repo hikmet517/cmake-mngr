@@ -40,6 +40,11 @@ Should be non-nil."
   :type '(repeat string)
   :group 'cmake-mngr)
 
+(defcustom cmake-mngr-global-build-args '()
+  "Argument to pass during build."
+  :type '(repeat string)
+  :group 'cmake-mngr)
+
 
 ;;;; Functions
 
@@ -60,7 +65,8 @@ Should be non-nil."
         (mapcar (lambda (s)
                   (let* ((kv (split-string s "=" t))
                          (kt (split-string (car kv) ":" t)))
-                    (list (car kt) ;; (cadr kt)
+                    (list (car kt)
+                          ;; (cadr kt)
                           (cadr kv))))
                 content)))))
 
@@ -168,25 +174,35 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
       (error "Cannot find cmake project for this file"))
     (unless build-dir
       (setq build-dir (cmake-mngr-set-build-directory)))
-    (if (and build-dir (not (file-exists-p build-dir)))
-        (progn
-          (mkdir build-dir)
-          (let ((cmd (format "cmake -S \"%s\" -B \"%s\""
-                             (gethash "Project Dir" project)
-                             (gethash "Build Dir" project))))
-            (maphash (lambda (k v) (setq cmd (concat cmd " -D" k "=" v)))
-                     (gethash "Custom Vars" project))
-            (dolist (v cmake-mngr-global-configure-args)
-              (setq cmd (concat cmd " " v)))
-            (setq cmd (concat "echo " cmd "; " cmd))
-            (async-shell-command cmd "*cmake configure*")))
-      (error "No build directory chosen"))))
+    (when (and build-dir (not (file-exists-p build-dir)))
+      (mkdir build-dir))
+    (when (and build-dir (file-exists-p build-dir))
+      (let ((cmd (concat "cmake -S " (shell-quote-argument (gethash "Project Dir" project))
+                         " -B " (shell-quote-argument (gethash "Build Dir" project)))))
+        (maphash (lambda (k v) (setq cmd (concat cmd " -D" k "=" v)))
+                 (gethash "Custom Vars" project))
+        (dolist (v cmake-mngr-global-configure-args)
+          (setq cmd (concat cmd " " v)))
+        (setq cmd (concat "echo " cmd "; " cmd))
+        (async-shell-command cmd "*cmake build*")))))
 
 
 (defun cmake-mngr-build ()
   "Build current project."
   (interactive)
-  (error "Not implemented"))
+  (let* ((project (cmake-mngr--get-project))
+         (build-dir (when project (gethash "Build Dir" project))))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (when (or (not build-dir)
+              (not (file-exists-p build-dir))
+              (not (file-exists-p (expand-file-name "CMakeCache.txt" build-dir))))
+      (cmake-mngr-configure))
+    (let ((cmd (concat "cmake --build " (shell-quote-argument build-dir))))
+      (dolist (v cmake-mngr-global-build-args)
+        (setq cmd (concat cmd " " v)))
+      (setq cmd (concat "echo " cmd "; " cmd))
+        (async-shell-command cmd "*cmake configure*"))))
 
 
 (defun cmake-mngr-select-build-type ()
@@ -212,16 +228,15 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
       (error "Cannot find cmake project for this file"))
     (let* ((proj-dir (gethash "Project Dir" project))
            (build-dir (gethash "Build Dir" project))
-           (build-dir-name (if build-dir
-                               (directory-file-name (string-trim-left build-dir proj-dir))
-                             ""))
+           (build-dir-name (when build-dir
+                             (directory-file-name (string-trim-left build-dir proj-dir))))
            (choice (completing-read
-                    (format "Select cmake build directory (default %s): "
-                            build-dir-name) ;; PROMPT
-                    cmake-mngr-build-dir-search-list ;; COLLECTION
-                    nil nil nil nil ;; PREDICATE REQUIRE-MATCH INITIAL-INPUT HIST
-                    build-dir-name ;; DEF
-                    )))
+                    (if build-dir (format "Select cmake build directory (default %s): "
+                                          build-dir-name)
+                      "Select cmake build directory: ")
+                    cmake-mngr-build-dir-search-list ; COLLECTION
+                    nil nil nil nil ; PREDICATE REQUIRE-MATCH INITIAL-INPUT HIST
+                    build-dir-name)))
       (when (and choice (not (equal choice "")))
         (setq build-dir (file-name-as-directory (expand-file-name choice proj-dir)))
         (puthash "Build Dir" build-dir project)
@@ -246,6 +261,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
 
 
 (defun cmake-mngr-reset ()
+  "Reset internal data."
   (interactive)
   (setq cmake-mngr-projects '()))
 
