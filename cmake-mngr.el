@@ -12,6 +12,8 @@
 ;; cmake targets
 ;; cake generators
 ;; suggestions using cmake vars' types
+;; clear build dir
+;; tabulated view for cache variables
 
 ;;; Code:
 
@@ -177,32 +179,38 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
     (when (and build-dir (not (file-exists-p build-dir)))
       (mkdir build-dir))
     (when (and build-dir (file-exists-p build-dir))
-      (let ((cmd (concat "cmake -S " (shell-quote-argument (gethash "Project Dir" project))
-                         " -B " (shell-quote-argument (gethash "Build Dir" project)))))
-        (maphash (lambda (k v) (setq cmd (concat cmd " -D" k "=" v)))
-                 (gethash "Custom Vars" project))
-        (dolist (v cmake-mngr-global-configure-args)
-          (setq cmd (concat cmd " " v)))
-        (setq cmd (concat "echo " cmd "; " cmd))
-        (async-shell-command cmd "*cmake build*")))))
+      (let* ((args (list "-S" (gethash "Project Dir" project)
+                         "-B" (gethash "Build Dir" project)))
+             (custom-args (maphash (lambda (k v) (concat "-D" k "=" v))
+                                   (gethash "Custom Vars" project)))
+             (all-args (append args cmake-mngr-global-configure-args custom-args))
+             (cmd (concat "cmake " (combine-and-quote-strings all-args))))
+        (message "Cmake configure command: %s" cmd)
+        (async-shell-command cmd "*cmake-configure*")))))
 
 
 (defun cmake-mngr-build ()
   "Build current project."
   (interactive)
   (let* ((project (cmake-mngr--get-project))
-         (build-dir (when project (gethash "Build Dir" project))))
+         (build-dir (when project (gethash "Build Dir" project)))
+         (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir))))
     (unless project
       (error "Cannot find cmake project for this file"))
-    (when (or (not build-dir)
-              (not (file-exists-p build-dir))
-              (not (file-exists-p (expand-file-name "CMakeCache.txt" build-dir))))
-      (cmake-mngr-configure))
-    (let ((cmd (concat "cmake --build " (shell-quote-argument build-dir))))
-      (dolist (v cmake-mngr-global-build-args)
-        (setq cmd (concat cmd " " v)))
-      (setq cmd (concat "echo " cmd "; " cmd))
-        (async-shell-command cmd "*cmake configure*"))))
+    (unless (and build-dir
+                 (file-exists-p build-dir)
+                 (file-exists-p cache-file))
+      (when (yes-or-no-p "Need to configure first, configure now? ")
+        (cmake-mngr-configure)))
+    (when (and build-dir
+               (file-exists-p build-dir)
+               (file-exists-p cache-file))
+      (let* ((args (append (list "--build" build-dir)
+                           cmake-mngr-global-build-args))
+             (buf (get-buffer-create "*cmake-build*"))
+             (cmd (concat "cmake " (combine-and-quote-strings args))))
+        (message "Cmake build command: %s" cmd)
+        (async-shell-command cmd "*cmake-build*")))))
 
 
 (defun cmake-mngr-select-build-type ()
