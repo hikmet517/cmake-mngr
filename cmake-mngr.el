@@ -12,8 +12,8 @@
 ;; cmake targets
 ;; cake generators
 ;; suggestions using cmake vars' types
-;; clear build dir
-;; tabulated view for cache variables
+;; test in windows, test without selectrum/helm etc.
+
 
 ;;; Code:
 
@@ -68,7 +68,7 @@ Should be non-nil."
                   (let* ((kv (split-string s "=" t))
                          (kt (split-string (car kv) ":" t)))
                     (list (car kt)
-                          ;; (cadr kt)
+                          (cadr kt)
                           (cadr kv))))
                 content)))))
 
@@ -139,16 +139,12 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                              (directory-file-name project-dir)))
                  (build-dir (cmake-mngr--find-project-build-dir project-dir))
                  (cache-vars (cmake-mngr--parse-cache-file
-                              (expand-file-name "CMakeCache.txt" build-dir)))
-                 (cache-data (make-hash-table :test 'equal)))
+                              (expand-file-name "CMakeCache.txt" build-dir))))
             (setq project-data (make-hash-table :test 'equal))
             (puthash "Root Name" root-name project-data)
             (puthash "Project Dir" project-dir project-data)
             (puthash "Build Dir" build-dir project-data)
             (puthash "Custom Vars" (make-hash-table :test 'equal) project-data)
-            (dolist (c cache-vars)
-              (puthash (car c) (cadr c) cache-data))
-            (puthash "Cache Vars" cache-data project-data)
             (push (cons project-dir project-data) cmake-mngr-projects)))))
     project-data))
 
@@ -156,15 +152,23 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
 (defun cmake-mngr-show-cache-variables ()
   "Show cmake cache variable in a buffer."
   (interactive)
-  (let ((project (cmake-mngr--get-project))
-        (buffer (generate-new-buffer "*cmake-cache-variables*")))
+  (let ((project (cmake-mngr--get-project)))
     (unless project
       (error "Cannot find cmake project for this file"))
-    (switch-to-buffer buffer)
-    (maphash (lambda (k v)
-               (insert k "=" (if v v "") "\n"))
-             (gethash "Cache Vars" project))
-    (setq buffer-read-only t)))
+    (let* ((build-dir (gethash "Build Dir" project))
+           (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
+           (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file))))
+      (when cache-vars
+        (let ((buf (get-buffer-create "*cmake-cache-variables*")))
+          (with-current-buffer buf
+            (dolist (d cache-vars)
+              (insert (format "%s:%s=%s\n"
+                              (or (car d) "")
+                              (or (cadr d) "")
+                              (or (caddr d) ""))))
+            (setq buffer-read-only t))
+          (display-buffer buf))))))
+
 
 
 (defun cmake-mngr-configure ()
@@ -177,7 +181,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
     (unless build-dir
       (setq build-dir (cmake-mngr-set-build-directory)))
     (when (and build-dir (not (file-exists-p build-dir)))
-      (mkdir build-dir))
+      (make-directory build-dir))
     (when (and build-dir (file-exists-p build-dir))
       (let* ((args (list "-S" (gethash "Project Dir" project)
                          "-B" (gethash "Build Dir" project)))
@@ -252,20 +256,35 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
 
 
 (defun cmake-mngr-set-variable ()
-  "Set a cmake variable as key=value."
+  "Set a cmake variable as key=value.
+
+These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
       (error "Cannot find cmake project for this file"))
-    (let* ((vars (gethash "Cache Vars" project))
+    (let* ((build-dir (gethash "Build Dir" project))
+           (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
+           (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file)))
            (key (completing-read "Variable: "
-                                 (when vars (hash-table-keys vars))))
-           (dflt (when (and vars key) (gethash key vars)))
+                                 (when cache-vars (mapcar #'car cache-vars))))
+           (dflt (when (and cache-vars key) (last (assoc key cache-vars))))
            (val (completing-read "Value: "
                                  (when dflt (list dflt)))))
       (let ((custom (gethash "Custom Vars" project)))
         (when (and custom key val)
           (puthash key val custom))))))
+
+
+(defun cmake-mngr-clear-build-directory ()
+  "Remove current build directory and all the files inside."
+  (interactive)
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let ((build-dir (gethash "Build Dir" project)))
+      (when (and build-dir (file-exists-p build-dir))
+        (delete-directory build-dir t)))))
 
 
 (defun cmake-mngr-reset ()
@@ -277,9 +296,3 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
 (provide 'cmake-mngr)
 
 ;;; cmake-mngr.el ends here
-
-
-;; random tests
-;;
-;; (gethash "Build Dir" (cdar cmake-mngr-projects))
-;;
