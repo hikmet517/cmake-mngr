@@ -159,6 +159,9 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
       (when cache-vars
         (let ((buf (get-buffer-create "*cmake-cache-variables*")))
           (with-current-buffer buf
+            (when buffer-read-only
+              (setq buffer-read-only nil)
+              (erase-buffer))
             (dolist (d cache-vars)
               (insert (format "%s:%s=%s\n"
                               (or (car d) "")
@@ -183,10 +186,10 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
     (when (and build-dir (file-exists-p build-dir))
       (let* ((args (list "-S" (gethash "Project Dir" project)
                          "-B" (gethash "Build Dir" project)))
-             (custom-vars (gethash "Custom Vars" project))
-             (custom-args (seq-mapn (lambda (k v) (format "-D%s=%s" k v))
-                                    (hash-table-keys custom-vars)
-                                    (hash-table-values custom-vars)))
+             (custom-args (let ((c (list)))
+                            (maphash (lambda (k v) (push (format "-D%s=%s" k v) c))
+                                     (gethash "Custom Vars" project))
+                            c))
              (all-args (append args cmake-mngr-global-configure-args custom-args))
              (cmd (concat "cmake " (combine-and-quote-strings all-args))))
         (message "Cmake configure command: %s" cmd)
@@ -211,7 +214,6 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                (file-exists-p cache-file))
       (let* ((args (append (list "--build" build-dir)
                            cmake-mngr-global-build-args))
-             (buf (get-buffer-create "*cmake-build*"))
              (cmd (concat "cmake " (combine-and-quote-strings args))))
         (message "Cmake build command: %s" cmd)
         (async-shell-command cmd "*cmake-build*")))))
@@ -268,7 +270,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file)))
            (key (completing-read "Variable: "
                                  (when cache-vars (mapcar #'car cache-vars))))
-           (dflt (when (and cache-vars key) (last (assoc key cache-vars))))
+           (dflt (when (and cache-vars key) (car (last (assoc key cache-vars)))))
            (val (completing-read "Value: "
                                  (when dflt (list dflt)))))
       (let ((custom-vars (gethash "Custom Vars" project)))
