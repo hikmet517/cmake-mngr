@@ -137,9 +137,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         (when project-dir
           (let* ((root-name (file-name-base
                              (directory-file-name project-dir)))
-                 (build-dir (cmake-mngr--find-project-build-dir project-dir))
-                 (cache-vars (cmake-mngr--parse-cache-file
-                              (expand-file-name "CMakeCache.txt" build-dir))))
+                 (build-dir (cmake-mngr--find-project-build-dir project-dir)))
             (setq project-data (make-hash-table :test 'equal))
             (puthash "Root Name" root-name project-data)
             (puthash "Project Dir" project-dir project-data)
@@ -185,8 +183,10 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
     (when (and build-dir (file-exists-p build-dir))
       (let* ((args (list "-S" (gethash "Project Dir" project)
                          "-B" (gethash "Build Dir" project)))
-             (custom-args (maphash (lambda (k v) (concat "-D" k "=" v))
-                                   (gethash "Custom Vars" project)))
+             (custom-vars (gethash "Custom Vars" project))
+             (custom-args (seq-mapn (lambda (k v) (format "-D%s=%s" k v))
+                                    (hash-table-keys custom-vars)
+                                    (hash-table-values custom-vars)))
              (all-args (append args cmake-mngr-global-configure-args custom-args))
              (cmd (concat "cmake " (combine-and-quote-strings all-args))))
         (message "Cmake configure command: %s" cmd)
@@ -271,9 +271,9 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
            (dflt (when (and cache-vars key) (last (assoc key cache-vars))))
            (val (completing-read "Value: "
                                  (when dflt (list dflt)))))
-      (let ((custom (gethash "Custom Vars" project)))
-        (when (and custom key val)
-          (puthash key val custom))))))
+      (let ((custom-vars (gethash "Custom Vars" project)))
+        (when (and custom-vars key val)
+          (puthash key val custom-vars))))))
 
 
 (defun cmake-mngr-clear-build-directory ()
