@@ -10,7 +10,7 @@
 
 ;; TODO:
 ;; cmake targets
-;; cake generators
+;; cmake generators
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
 
@@ -71,6 +71,19 @@ Should be non-nil."
                           (cadr kt)
                           (cadr kv))))
                 content)))))
+
+
+(defun cmake-mngr--get-available-generators ()
+  "Find available generators by parsing 'cmake --help'."
+  (let ((str (shell-command-to-string "cmake --help")))
+    (when str
+      (let* ((found (string-match "The following generators are available" str))
+             (slist (when found (cdr (split-string (substring str found) "\n" t))))
+             (filt (when slist (seq-filter (lambda (s) (seq-contains-p s ?=)) slist)))
+             (gens (when filt (mapcar (lambda (s) (string-trim
+                                                   (car (split-string s "=" t))))
+                                      filt))))
+        (mapcar (lambda (s) (string-trim-left s "* ")) gens)))))
 
 
 (defun cmake-mngr--find-project-dir (filepath)
@@ -141,6 +154,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
             (setq project-data (make-hash-table :test 'equal))
             (puthash "Root Name" root-name project-data)
             (puthash "Project Dir" project-dir project-data)
+            (puthash "Generator" nil project-data)
             (puthash "Build Dir" build-dir project-data)
             (puthash "Custom Vars" (make-hash-table :test 'equal) project-data)
             (push (cons project-dir project-data) cmake-mngr-projects)))))
@@ -164,9 +178,9 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
               (erase-buffer))
             (dolist (d cache-vars)
               (insert (format "%s:%s=%s\n"
-                              (or (car d) "")
-                              (or (cadr d) "")
-                              (or (caddr d) ""))))
+                              (or (elt d 0) "")
+                              (or (elt d 1) "")
+                              (or (elt d 2) ""))))
             (setq buffer-read-only t))
           (display-buffer buf))))))
 
@@ -184,8 +198,10 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
     (when (and build-dir (not (file-exists-p build-dir)))
       (make-directory build-dir))
     (when (and build-dir (file-exists-p build-dir))
-      (let* ((args (list "-S" (gethash "Project Dir" project)
-                         "-B" (gethash "Build Dir" project)))
+      (let* ((args (append (list "-S" (gethash "Project Dir" project)
+                                 "-B" (gethash "Build Dir" project))
+                           (let ((gen (gethash "Generator" project)))
+                             (when gen (list "-G" gen)))))
              (custom-args (let ((c (list)))
                             (maphash (lambda (k v) (push (format "-D%s=%s" k v) c))
                                      (gethash "Custom Vars" project))
@@ -232,6 +248,19 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
           (custom (gethash "Custom Vars" project)))
       (when (and custom type)
         (puthash "CMAKE_BUILD_TYPE" type custom)))))
+
+
+(defun cmake-mngr-set-generator ()
+  "Set generator for current project."
+  (interactive)
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let* ((generators (cmake-mngr--get-available-generators))
+           (choice (completing-read "Select a generator: "
+                                    generators)))
+      (when (and choice (not (string-equal choice "")))
+        (puthash "Generator" choice project)))))
 
 
 (defun cmake-mngr-set-build-directory ()
