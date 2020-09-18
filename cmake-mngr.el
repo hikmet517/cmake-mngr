@@ -1,4 +1,4 @@
-;;; package --- Manage cmake projects
+;;; package --- Manage cmake projects -*- lexical-binding: t -*-
 
 ;; Author: Hikmet Altıntaş (hikmet1517@gmail.com)
 ;; Keywords: tools, extensions
@@ -10,18 +10,33 @@
 
 ;; TODO:
 ;; cmake targets
-;; cmake generators
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
 
 
 ;;; Code:
 
+
+;;;; Libraries
+
+(require 'seq)
+
 ;;;; Variables
 
 (defvar cmake-mngr-projects (list)
   "Currently opened cmake projects.")
 
+
+;;;; Constants
+
+(defconst cmake-mngr-cache-buffer-name "*cmake-mngr-cache-variables*"
+  "Buffer name for cache variables.")
+
+(defconst cmake-mngr-configure-buffer-name "*cmake-mngr-configure*"
+  "Buffer name for the output of configure command.")
+
+(defconst cmake-mngr-build-buffer-name "*cmake-mngr-build*"
+  "Buffer name for the output of build command.")
 
 ;;;; User options
 
@@ -77,8 +92,9 @@ Should be non-nil."
   "Find available generators by parsing 'cmake --help'."
   (let ((str (shell-command-to-string "cmake --help")))
     (when str
-      (let* ((found (string-match "The following generators are available" str))
-             (slist (when found (cdr (split-string (substring str found) "\n" t))))
+      (let* ((ss (replace-regexp-in-string "\n[[:space:]]*=" "=" str))
+             (found (string-match "The following generators are available" ss))
+             (slist (when found (cdr (split-string (substring ss found) "\n" t))))
              (filt (when slist (seq-filter (lambda (s) (seq-contains-p s ?=)) slist)))
              (gens (when filt (mapcar (lambda (s) (string-trim
                                                    (car (split-string s "=" t))))
@@ -171,7 +187,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file))))
       (when cache-vars
-        (let ((buf (get-buffer-create "*cmake-cache-variables*")))
+        (let ((buf (get-buffer-create cmake-mngr-cache-buffer-name)))
           (with-current-buffer buf
             (when buffer-read-only
               (setq buffer-read-only nil)
@@ -209,7 +225,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
              (all-args (append args cmake-mngr-global-configure-args custom-args))
              (cmd (concat "cmake " (combine-and-quote-strings all-args))))
         (message "Cmake configure command: %s" cmd)
-        (async-shell-command cmd "*cmake-configure*")))))
+        (async-shell-command cmd cmake-mngr-configure-buffer-name)))))
 
 
 (defun cmake-mngr-build ()
@@ -232,7 +248,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                            cmake-mngr-global-build-args))
              (cmd (concat "cmake " (combine-and-quote-strings args))))
         (message "Cmake build command: %s" cmd)
-        (async-shell-command cmd "*cmake-build*")))))
+        (async-shell-command cmd cmake-mngr-build-buffer-name)))))
 
 
 (defun cmake-mngr-select-build-type ()
