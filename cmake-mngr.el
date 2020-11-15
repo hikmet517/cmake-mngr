@@ -1,4 +1,4 @@
-;;; package --- Manage cmake projects -*- lexical-binding: t -*-
+;;; cmake-mngr.el --- Manage cmake projects -*- lexical-binding: t -*-
 
 ;; Author: Hikmet Altıntaş (hikmet1517@gmail.com)
 ;; Keywords: tools, extensions
@@ -12,6 +12,7 @@
 ;; cmake targets
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
+;; create symlink to compile_commands function
 
 
 ;;; Code:
@@ -25,7 +26,6 @@
 
 (defvar cmake-mngr-projects (list)
   "Currently opened cmake projects.")
-
 
 ;;;; Constants
 
@@ -102,6 +102,19 @@ Should be non-nil."
         (mapcar (lambda (s) (string-trim-left s "* ")) gens)))))
 
 
+;; check cmake --build . --target help
+(defun cmake-mngr--get-available-targets ()
+  "Find available targets."
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let* ((project-dir (gethash "Project Dir" project))
+           (cmake-files (directory-files-recursively project-dir "CMakeLists.txt")))
+      (dolist (file cmake-files)
+        (let* ((content (with-temp-buffer (insert-file-contents file)))
+               (exes (string-match "add_executable" content))))))))
+
+
 (defun cmake-mngr--find-project-dir (filepath)
   "Find cmake project root for buffer with the path FILEPATH."
   (let ((dirpath filepath)
@@ -172,11 +185,38 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
             (puthash "Project Dir" project-dir project-data)
             (puthash "Generator" nil project-data)
             (puthash "Build Dir" build-dir project-data)
+            (puthash "Target" nil project-data)
             (puthash "Custom Vars" (make-hash-table :test 'equal) project-data)
             (push (cons project-dir project-data) cmake-mngr-projects)))))
     project-data))
 
 
+;;;###autoload
+(defun cmake-mngr-create-symlink-to-compile-commands ()
+  "Show cmake cache variable in a buffer."
+  (interactive)
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let* ((project-dir (gethash "Project Dir" project))
+           (build-dir (gethash "Build Dir" project))
+           (json-file (when build-dir
+                        (expand-file-name "compile_commands.json" build-dir))))
+      (if (and build-dir
+               json-file
+               (file-exists-p build-dir)
+               (file-exists-p json-file))
+          (start-process "create-symlink"
+                         nil
+                         "ln"
+                         "-s"
+                         json-file
+                         "-t"
+                         project-dir)
+        (error "Cannot found build directory or 'compile_commands.json'")))))
+
+
+;;;###autoload
 (defun cmake-mngr-show-cache-variables ()
   "Show cmake cache variable in a buffer."
   (interactive)
@@ -201,7 +241,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
           (display-buffer buf))))))
 
 
-
+;;;###autoload
 (defun cmake-mngr-configure ()
   "Configure current project."
   (interactive)
@@ -228,6 +268,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         (async-shell-command cmd cmake-mngr-configure-buffer-name)))))
 
 
+;;;###autoload
 (defun cmake-mngr-build ()
   "Build current project."
   (interactive)
@@ -251,6 +292,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         (async-shell-command cmd cmake-mngr-build-buffer-name)))))
 
 
+;;;###autoload
 (defun cmake-mngr-select-build-type ()
   "Get cmake build type from user."
   (interactive)
@@ -266,6 +308,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         (puthash "CMAKE_BUILD_TYPE" type custom)))))
 
 
+;;;###autoload
 (defun cmake-mngr-set-generator ()
   "Set generator for current project."
   (interactive)
@@ -279,6 +322,20 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         (puthash "Generator" choice project)))))
 
 
+(defun cmake-mngr-set-target ()
+  "Set target for current project."
+  (interactive)
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let* ((targets (cmake-mngr--get-available-targets))
+           (choice (completing-read "Select a target: "
+                                    targets)))
+      (when (and choice (not (string-equal choice "")))
+        (puthash "Generator" choice project)))))
+
+
+;;;###autoload
 (defun cmake-mngr-set-build-directory ()
   "Set cmake build directory."
   (interactive)
@@ -302,8 +359,9 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         build-dir))))
 
 
+;;;###autoload
 (defun cmake-mngr-set-variable ()
-  "Set a cmake variable as key=value.
+  "Set a cmake variable as KEY=VALUE.
 
 These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
@@ -323,6 +381,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
           (puthash key val custom-vars))))))
 
 
+;;;###autoload
 (defun cmake-mngr-clear-build-directory ()
   "Remove current build directory and all the files inside."
   (interactive)
@@ -334,6 +393,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
         (delete-directory build-dir t)))))
 
 
+;;;###autoload
 (defun cmake-mngr-reset ()
   "Reset internal data."
   (interactive)
