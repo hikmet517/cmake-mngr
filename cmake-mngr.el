@@ -12,7 +12,6 @@
 ;; cmake targets
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
-;; create symlink to compile_commands function
 
 
 ;;; Code:
@@ -70,22 +69,19 @@ Should be non-nil."
   (when (file-readable-p filepath)
     (let ((content (with-temp-buffer
                      (insert-file-contents filepath)
-                     (split-string (buffer-string) "\n" t))))
-      ;; filter out the commented lines
-      (setq content (seq-filter (lambda (s)
-                                  (not (or
-                                        (string-prefix-p "#" s)
-                                        (string-prefix-p "//" s))))
-                                content))
-      ;; if there is a line that does not contain '=', return nil
-      (unless (seq-find  (lambda (s) (not (seq-contains-p s ?=))) content)
-        (mapcar (lambda (s)
-                  (let* ((kv (split-string s "=" t))
-                         (kt (split-string (car kv) ":" t)))
-                    (list (car kt)
-                          (cadr kt)
-                          (cadr kv))))
-                content)))))
+                     (split-string (buffer-string) "\n" t)))
+          (res '()))
+      (dolist (line content)
+        (when (and (not (string-prefix-p "#" line))
+                   (not (string-prefix-p "//" line))
+                   (seq-contains-p line ?=))
+          (let* ((kv (split-string line "=" t))
+                 (kt (split-string (car kv) ":" t)))
+            (setq res (cons (list (car kt)
+                                  (cadr kt)
+                                  (cadr kv))
+                            res)))))
+      (reverse res))))
 
 
 (defun cmake-mngr--get-available-generators ()
@@ -237,6 +233,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                               (or (elt d 0) "")
                               (or (elt d 1) "")
                               (or (elt d 2) ""))))
+            (text-mode)
             (setq buffer-read-only t))
           (display-buffer buf))))))
 
@@ -401,5 +398,4 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
 
 
 (provide 'cmake-mngr)
-
 ;;; cmake-mngr.el ends here
