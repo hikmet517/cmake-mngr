@@ -77,10 +77,10 @@ Should be non-nil."
                    (seq-contains-p line ?=))
           (let* ((kv (split-string line "=" t))
                  (kt (split-string (car kv) ":" t)))
-            (setq res (cons (list (car kt)
-                                  (cadr kt)
-                                  (cadr kv))
-                            res)))))
+            (push (list (car kt)
+                        (cadr kt)
+                        (cadr kv))
+                  res))))
       (reverse res))))
 
 
@@ -96,19 +96,6 @@ Should be non-nil."
                                                    (car (split-string s "=" t))))
                                       filt))))
         (mapcar (lambda (s) (string-trim-left s "* ")) gens)))))
-
-
-;; check cmake --build . --target help
-(defun cmake-mngr--get-available-targets ()
-  "Find available targets."
-  (let ((project (cmake-mngr--get-project)))
-    (unless project
-      (error "Cannot find cmake project for this file"))
-    (let* ((project-dir (gethash "Project Dir" project))
-           (cmake-files (directory-files-recursively project-dir "CMakeLists.txt")))
-      (dolist (file cmake-files)
-        (let* ((content (with-temp-buffer (insert-file-contents file)))
-               (exes (string-match "add_executable" content))))))))
 
 
 (defun cmake-mngr--find-project-dir (filepath)
@@ -202,13 +189,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                json-file
                (file-exists-p build-dir)
                (file-exists-p json-file))
-          (start-process "create-symlink"
-                         nil
-                         "ln"
-                         "-s"
-                         json-file
-                         "-t"
-                         project-dir)
+          (start-process "create-symlink" nil "ln" "-s" json-file "-t" project-dir)
         (error "Cannot found build directory or 'compile_commands.json'")))))
 
 
