@@ -300,19 +300,6 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
         (puthash "Generator" choice project)))))
 
 
-(defun cmake-mngr-set-target ()
-  "Set target for current project."
-  (interactive)
-  (let ((project (cmake-mngr--get-project)))
-    (unless project
-      (error "Cannot find cmake project for this file"))
-    (let* ((targets (cmake-mngr--get-available-targets))
-           (choice (completing-read "Select a target: "
-                                    targets)))
-      (when (and choice (not (string-equal choice "")))
-        (puthash "Generator" choice project)))))
-
-
 ;;;###autoload
 (defun cmake-mngr-set-build-directory ()
   "Set cmake build directory."
