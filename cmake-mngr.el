@@ -12,7 +12,7 @@
 ;; cmake targets
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
-
+;; use `compile' interface
 
 ;;; Code:
 
@@ -28,13 +28,13 @@
 
 ;;;; Constants
 
-(defconst cmake-mngr-cache-buffer-name "*cmake-mngr-cache-variables*"
+(defconst cmake-mngr-cache-buffer-name "*cmake-mngr-cache-variables <%s>*"
   "Buffer name for cache variables.")
 
-(defconst cmake-mngr-configure-buffer-name "*cmake-mngr-configure*"
+(defconst cmake-mngr-configure-buffer-name "*cmake-mngr-configure <%s>*"
   "Buffer name for the output of configure command.")
 
-(defconst cmake-mngr-build-buffer-name "*cmake-mngr-build*"
+(defconst cmake-mngr-build-buffer-name "*cmake-mngr-build <%s>*"
   "Buffer name for the output of build command.")
 
 ;;;; User options
@@ -176,7 +176,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
 
 ;;;###autoload
 (defun cmake-mngr-create-symlink-to-compile-commands ()
-  "Show cmake cache variable in a buffer."
+  "Create a symlink that points to 'compile_commands.json' (needed for lsp to work)."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
@@ -201,10 +201,11 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
     (unless project
       (error "Cannot find cmake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
+           (buf-name (format cmake-mngr-cache-buffer-name (gethash "Root Name" project)))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file))))
       (when cache-vars
-        (let ((buf (get-buffer-create cmake-mngr-cache-buffer-name)))
+        (let ((buf (get-buffer-create buf-name)))
           (with-current-buffer buf
             (when buffer-read-only
               (setq buffer-read-only nil)
@@ -224,7 +225,8 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
   "Configure current project."
   (interactive)
   (let* ((project (cmake-mngr--get-project))
-         (build-dir (when project (gethash "Build Dir" project))))
+         (build-dir (when project (gethash "Build Dir" project)))
+         (buf-name (format cmake-mngr-configure-buffer-name (gethash "Root Name" project))))
     (unless project
       (error "Cannot find cmake project for this file"))
     (unless build-dir
@@ -243,7 +245,7 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
              (all-args (append args cmake-mngr-global-configure-args custom-args))
              (cmd (concat "cmake " (combine-and-quote-strings all-args))))
         (message "Cmake configure command: %s" cmd)
-        (async-shell-command cmd cmake-mngr-configure-buffer-name)))))
+        (async-shell-command cmd buf-name)))))
 
 
 ;;;###autoload
@@ -252,7 +254,8 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
   (interactive)
   (let* ((project (cmake-mngr--get-project))
          (build-dir (when project (gethash "Build Dir" project)))
-         (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir))))
+         (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
+         (buf-name (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
     (unless project
       (error "Cannot find cmake project for this file"))
     (unless (and build-dir
@@ -265,9 +268,10 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                (file-exists-p cache-file))
       (let* ((args (append (list "--build" build-dir)
                            cmake-mngr-global-build-args))
-             (cmd (concat "cmake " (combine-and-quote-strings args))))
+             (cmd (concat "cmake " (combine-and-quote-strings args)))
+             (compilation-buffer-name-function))
         (message "Cmake build command: %s" cmd)
-        (async-shell-command cmd cmake-mngr-build-buffer-name)))))
+        (async-shell-command cmd buf-name)))))
 
 
 ;;;###autoload
