@@ -169,7 +169,7 @@ none, look for if any of the directories listed in
 
 If it already found before (added to `cmake-mngr-projects') returns
 this.  Otherwise, searches directory structure of current buffer.  If
-found, data is added to `cmake-mngr-projects', otherwise returns nil."
+found, data is added to `cmake-mngr-projects' and returned, otherwise returns nil."
   (let* ((filepath (buffer-file-name))
          (project-data (when filepath
                          (cdr (assoc
