@@ -9,7 +9,6 @@
 
 
 ;; TODO:
-;; cmake targets
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
 ;; use `compile' interface
@@ -20,6 +19,7 @@
 ;;;; Libraries
 
 (require 'seq)
+(require 'subr-x)
 
 ;;;; Variables
 
@@ -96,6 +96,25 @@ Should be non-nil."
                                                    (car (split-string s "=" t))))
                                       filt))))
         (mapcar (lambda (s) (string-trim-left s "* ")) gens)))))
+
+
+(defun cmake-mngr--get-available-targets ()
+  "Find available targets by parsing 'cmake --build build-dir --help'."
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let* ((build-dir (gethash "Build Dir" project))
+           (targets '())
+           (cmd (concat "cmake --build " (shell-quote-argument build-dir) " --target help"))
+           (str (shell-command-to-string cmd)))
+      (message "%s" (length (split-string str "\n" t)))
+      (dolist (line (split-string str "\n" t))
+        (when (string-prefix-p "... " line)
+          (setq targets (cons (car
+                               (split-string
+                                (string-trim-left line (regexp-quote "... "))))
+                              targets))))
+      (reverse targets))))
 
 
 (defun cmake-mngr--find-project-dir (filepath)
@@ -267,6 +286,8 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                (file-exists-p build-dir)
                (file-exists-p cache-file))
       (let* ((args (append (list "--build" build-dir)
+                           (let ((tgt (gethash "Target" project)))
+                             (when tgt (list "--target" tgt)))
                            cmake-mngr-global-build-args))
              (cmd (concat "cmake " (combine-and-quote-strings args)))
              (compilation-buffer-name-function))
@@ -302,6 +323,20 @@ found, data is added to `cmake-mngr-projects', otherwise returns nil."
                                     generators)))
       (when (and choice (not (string-equal choice "")))
         (puthash "Generator" choice project)))))
+
+
+;;;###autoload
+(defun cmake-mngr-set-target ()
+  "Set target for current project."
+  (interactive)
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find cmake project for this file"))
+    (let* ((targets (cmake-mngr--get-available-targets))
+           (choice (completing-read "Select a target: "
+                                    targets)))
+      (when (and choice (not (string-equal choice "")))
+        (puthash "Target" choice project)))))
 
 
 ;;;###autoload
@@ -347,7 +382,8 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
                                  (when dflt (list dflt)))))
       (let ((custom-vars (gethash "Custom Vars" project)))
         (when (and custom-vars key val)
-          (puthash key val custom-vars))))))
+          (puthash key val custom-vars)
+          (message "Need to reconfigure now!"))))))
 
 
 ;;;###autoload
