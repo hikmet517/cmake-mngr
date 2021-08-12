@@ -385,7 +385,8 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
       (let ((custom-vars (gethash "Custom Vars" project)))
         (when (and custom-vars key val)
           (puthash key val custom-vars)
-          (message "Need to reconfigure now!"))))))
+          (when (yes-or-no-p "Need to reconfigure, configure now? ")
+            (cmake-mngr-configure)))))))
 
 
 ;;;###autoload
