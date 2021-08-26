@@ -117,17 +117,27 @@ Should be non-nil."
       (reverse targets))))
 
 
+(defun cmake-mngr--get-upper-dir (path)
+  (let ((path-with-no-slash (string-trim-right path "/")))
+    (if path-with-no-slash
+        (file-name-directory path-with-no-slash)
+      nil)))
+
+
 (defun cmake-mngr--find-project-dir (filepath)
   "Find cmake project root for buffer with the path FILEPATH."
-  (let ((dirpath filepath)
+  (let ((dir-iter filepath)
         (dir-found nil)
-        (is-top nil))
-    (while (and dirpath (not is-top))
-      (setq dirpath (file-name-directory (string-trim-right dirpath "/")))
-      (if (file-exists-p (expand-file-name "CMakeLists.txt" dirpath))
-          (setq dir-found dirpath)
+        (is-top-found nil))
+
+    (while (and dir-iter
+                (not (and dir-found
+                          is-top-found)))
+      (if (file-exists-p (expand-file-name "CMakeLists.txt" dir-iter))
+          (setq dir-found dir-iter)
         (when dir-found
-          (setq is-top t))))
+          (setq is-top-found t)))
+      (setq dir-iter (cmake-mngr--get-upper-dir dir-iter)))
     dir-found))
 
 
@@ -279,11 +289,17 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
          (buf-name (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
     (unless project
       (error "Cannot find cmake project for this file"))
-    (unless (and build-dir
-                 (file-exists-p build-dir)
-                 (file-exists-p cache-file))
+
+    (when (not build-dir)
+      (when (yes-or-no-p "Build directory is not set, set now? ")
+        (cmake-mngr-set-build-directory)))
+    (when (and build-dir
+               (or (not (file-exists-p build-dir))
+                   (not cache-file)
+                   (not (file-exists-p cache-file))))
       (when (yes-or-no-p "Need to configure first, configure now? ")
         (cmake-mngr-configure)))
+
     (when (and build-dir
                (file-exists-p build-dir)
                (file-exists-p cache-file))
