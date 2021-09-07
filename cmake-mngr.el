@@ -51,7 +51,7 @@ Should be non-nil."
   :type '(repeat directory)
   :group 'cmake-mngr)
 
-(defcustom cmake-mngr-global-configure-args '("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
+(defcustom cmake-mngr-global-configure-args '("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
   "Argument to pass during configuration."
   :type '(repeat string)
   :group 'cmake-mngr)
@@ -117,7 +117,8 @@ Should be non-nil."
       (reverse targets))))
 
 
-(defun cmake-mngr--get-upper-dir (path)
+(defun cmake-mngr--get-parent-dir (path)
+  "Get parent dir of given PATH."
   (let ((path-with-no-slash (string-trim-right path "/")))
     (if path-with-no-slash
         (file-name-directory path-with-no-slash)
@@ -137,7 +138,7 @@ Should be non-nil."
           (setq dir-found dir-iter)
         (when dir-found
           (setq is-top-found t)))
-      (setq dir-iter (cmake-mngr--get-upper-dir dir-iter)))
+      (setq dir-iter (cmake-mngr--get-parent-dir dir-iter)))
     dir-found))
 
 
@@ -180,7 +181,9 @@ none, look for if any of the directories listed in
 If it already found before (added to `cmake-mngr-projects') returns
 this.  Otherwise, searches directory structure of current buffer.  If
 found, data is added to `cmake-mngr-projects' and returned, otherwise returns nil."
+  (declare-function dired-current-directory "dired" ())
   (let* ((filepath (if (equal major-mode 'dired-mode)
+                       (require 'dired)
                        (dired-current-directory)
                      (buffer-file-name)))
          (project-data (when filepath
