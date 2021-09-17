@@ -20,6 +20,7 @@
 
 (require 'seq)
 (require 'subr-x)
+(require 'tabulated-list)
 
 ;;;; Variables
 
@@ -65,22 +66,25 @@ Should be non-nil."
 ;;;; Functions
 
 (defun cmake-mngr--parse-cache-file (filepath)
-  "Parse given CMakeCache.txt file in FILEPATH as '(key type value)."
+  "Parse given CMakeCache.txt file in FILEPATH as a list of elements
+in the form (ID [KEY TYPE VALUE])."
   (when (file-readable-p filepath)
     (let ((content (with-temp-buffer
                      (insert-file-contents filepath)
                      (split-string (buffer-string) "\n" t)))
-          (res '()))
+          (res '())
+          (iter 0))
       (dolist (line content)
         (when (and (not (string-prefix-p "#" line))
                    (not (string-prefix-p "//" line))
                    (seq-contains-p line ?=))
           (let* ((kv (split-string line "=" t))
                  (kt (split-string (car kv) ":" t)))
-            (push (list (car kt)
-                        (cadr kt)
-                        (cadr kv))
-                  res))))
+            (push (list iter `[,(or (car kt) "")
+                               ,(or (cadr kt) "")
+                               ,(or (cadr kv) "")])
+                  res)
+            (setq iter (1+ iter)))))
       (reverse res))))
 
 
@@ -228,6 +232,19 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
         (error "Cannot found build directory or 'compile_commands.json'")))))
 
 
+(define-derived-mode cmake-mngr-variables-mode tabulated-list-mode "CMake Variables"
+  "Major mode for viewing CMake Variables."
+  (visual-line-mode +1)
+  (setq truncate-lines t)
+  (setq buffer-read-only t)
+  (setq tabulated-list-format
+        `[("Variable" 40 t)
+          ("Type" 15 t)
+          ("Value" 0 t)])
+  ;; (setq tabulated-list-padding 2)
+  (tabulated-list-init-header))
+
+
 ;;;###autoload
 (defun cmake-mngr-show-cache-variables ()
   "Show cmake cache variable in a buffer."
@@ -241,18 +258,11 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file))))
       (when cache-vars
         (let ((buf (get-buffer-create buf-name)))
-          (with-current-buffer buf
-            (when buffer-read-only
-              (setq buffer-read-only nil)
-              (erase-buffer))
-            (dolist (d cache-vars)
-              (insert (format "%s:%s=%s\n"
-                              (or (elt d 0) "")
-                              (or (elt d 1) "")
-                              (or (elt d 2) ""))))
-            (text-mode)
-            (setq buffer-read-only t))
-          (display-buffer buf))))))
+          (display-buffer buf)
+          (set-buffer buf)
+          (cmake-mngr-variables-mode)
+          (setq tabulated-list-entries cache-vars)
+          (tabulated-list-print))))))
 
 
 ;;;###autoload
