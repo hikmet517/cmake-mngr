@@ -12,6 +12,7 @@
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
 ;; use `compile' interface
+;; add install support
 
 ;;; Code:
 
@@ -25,7 +26,7 @@
 ;;;; Variables
 
 (defvar cmake-mngr-projects (list)
-  "Currently opened cmake projects.")
+  "Currently opened CMake projects.")
 
 ;;;; Constants
 
@@ -47,7 +48,7 @@
   :link '(url-link "https://github.com/hikmet517/cmake-mngr.el"))
 
 (defcustom cmake-mngr-build-dir-search-list '("build" "bin" "out")
-  "List of directories to search for cmake build directory.
+  "List of directories to search for CMake build directory.
 Should be non-nil."
   :type '(repeat directory)
   :group 'cmake-mngr)
@@ -89,7 +90,7 @@ in the form (ID [KEY TYPE VALUE])."
 
 
 (defun cmake-mngr--get-available-generators ()
-  "Find available generators by parsing 'cmake --help'."
+  "Find available generators by parsing the output of 'cmake --help'."
   (let ((str (shell-command-to-string "cmake --help")))
     (when str
       (let* ((ss (replace-regexp-in-string "\n[[:space:]]*=" "=" str))
@@ -130,7 +131,7 @@ in the form (ID [KEY TYPE VALUE])."
 
 
 (defun cmake-mngr--find-project-dir (filepath)
-  "Find cmake project root for buffer with the path FILEPATH."
+  "Find CMake project root for buffer with the path FILEPATH."
   (let ((dir-iter filepath)
         (dir-found nil)
         (is-top-found nil))
@@ -158,7 +159,7 @@ in the form (ID [KEY TYPE VALUE])."
 
 
 (defun cmake-mngr--find-project-build-dir (project-dir)
-  "Get cmake project build directory by searching the path of PROJECT-DIR.
+  "Get CMake project build directory by searching the path of PROJECT-DIR.
 
 First, search for sub-directories that contain 'CMakeCache.txt', If there is
 none, look for if any of the directories listed in
@@ -215,11 +216,12 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
 
 ;;;###autoload
 (defun cmake-mngr-create-symlink-to-compile-commands ()
-  "Create a symlink that points to 'compile_commands.json' (needed for lsp to work)."
+  "Create a symlink in project root that points to 'compile_commands.json'
+(needed for `lsp' to work)."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((project-dir (gethash "Project Dir" project))
            (build-dir (gethash "Build Dir" project))
            (json-file (when build-dir
@@ -247,7 +249,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
 
 ;;;###autoload
 (defun cmake-mngr-show-cache-variables ()
-  "Show cmake cache variable in a buffer."
+  "Show CMake cache variables in a buffer."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
@@ -297,50 +299,51 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
 (defun cmake-mngr-build ()
   "Build current project."
   (interactive)
-  (let* ((project (cmake-mngr--get-project))
-         (build-dir (when project (gethash "Build Dir" project)))
-         (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
-         (buf-name (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
+  (let ((project (cmake-mngr--get-project)))
     (unless project
       (error "Cannot find cmake project for this file"))
-
-    (when (not build-dir)
-      (when (yes-or-no-p "Build directory is not set, set now? ")
-        (cmake-mngr-set-build-directory)))
-    (when (and build-dir
-               (or (not (file-exists-p build-dir))
-                   (not cache-file)
-                   (not (file-exists-p cache-file))))
-      (when (yes-or-no-p "Need to configure first, configure now? ")
-        (cmake-mngr-configure)))
-
-    (when (and build-dir
-               (file-exists-p build-dir)
-               (file-exists-p cache-file))
-      (let* ((args (append (list "--build" build-dir)
-                           (let ((tgt (gethash "Target" project)))
-                             (when tgt (list "--target" tgt)))
-                           cmake-mngr-global-build-args))
-             (cmd (concat "cmake " (combine-and-quote-strings args)))
-             (compilation-buffer-name-function))
-        (message "Cmake build command: %s" cmd)
-        (async-shell-command cmd buf-name)))))
+    (let* ((build-dir (gethash "Build Dir" project))
+           (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
+           (buf-name (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
+      (when (not build-dir)
+        (when (yes-or-no-p "Build directory is not set, set now? ")
+          (setq build-dir (cmake-mngr-set-build-directory))))
+      (when (and build-dir
+                 (or (not (file-exists-p build-dir))
+                     (not cache-file)
+                     (not (file-exists-p cache-file))))
+        (when (yes-or-no-p "Need to configure first, configure now? ")
+          (cmake-mngr-configure)))
+      (when (and build-dir
+                 (file-exists-p build-dir)
+                 (file-exists-p cache-file))
+        (let* ((args (append (list "--build" build-dir)
+                             (let ((tgt (gethash "Target" project)))
+                               (when tgt (list "--target" tgt)))
+                             cmake-mngr-global-build-args))
+               (cmd (concat "cmake " (combine-and-quote-strings args)))
+               (compilation-buffer-name-function))
+          (message "Cmake build command: %s" cmd)
+          (async-shell-command cmd buf-name))))))
 
 
 ;;;###autoload
 (defun cmake-mngr-select-build-type ()
-  "Get cmake build type from user."
+  "Get CMake build type from user."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
       (error "Cannot find cmake project for this file"))
     (let ((type (completing-read "Select cmake build type: "
                                  '("Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-                                 nil
-                                 t))
+                                 nil 'REQUIRE-MATCH nil nil
+                                 (gethash "CMAKE_BUILD_TYPE"
+                                          (gethash "Custom Vars" project))))
           (custom (gethash "Custom Vars" project)))
       (when (and custom type)
-        (puthash "CMAKE_BUILD_TYPE" type custom)))))
+        (puthash "CMAKE_BUILD_TYPE" type custom)
+        (when (yes-or-no-p "Need to reconfigure, configure now? ")
+          (cmake-mngr-configure))))))
 
 
 ;;;###autoload
@@ -373,7 +376,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
 
 ;;;###autoload
 (defun cmake-mngr-set-build-directory ()
-  "Set cmake build directory."
+  "Set CMake build directory."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
@@ -397,7 +400,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
 
 ;;;###autoload
 (defun cmake-mngr-set-variable ()
-  "Set a cmake variable as KEY=VALUE.
+  "Set a CMake variable as KEY=VALUE.
 
 These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
