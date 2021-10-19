@@ -81,9 +81,9 @@ in the form (ID [KEY TYPE VALUE])."
                    (seq-contains-p line ?=))
           (let* ((kv (split-string line "=" t))
                  (kt (split-string (car kv) ":" t)))
-            (push (list iter `[,(or (car kt) "")
-                               ,(or (cadr kt) "")
-                               ,(or (cadr kv) "")])
+            (push (list iter (vector (or (car kt) "")
+                                     (or (cadr kt) "")
+                                     (or (cadr kv) "")))
                   res)
             (setq iter (1+ iter)))))
       (reverse res))))
@@ -107,7 +107,7 @@ in the form (ID [KEY TYPE VALUE])."
   "Find available targets by parsing 'cmake --build build-dir --help'."
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (targets '())
            (cmd (concat "cmake --build " (shell-quote-argument build-dir) " --target help"))
@@ -253,7 +253,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (buf-name (format cmake-mngr-cache-buffer-name (gethash "Root Name" project)))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
@@ -275,7 +275,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
          (build-dir (when project (gethash "Build Dir" project)))
          (buf-name (format cmake-mngr-configure-buffer-name (gethash "Root Name" project))))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (unless build-dir
       (setq build-dir (cmake-mngr-set-build-directory)))
     (when (and build-dir (not (file-exists-p build-dir)))
@@ -301,7 +301,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
            (buf-name (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
@@ -333,7 +333,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let ((type (completing-read "Select cmake build type: "
                                  '("Debug" "Release" "MinSizeRel" "RelWithDebInfo")
                                  nil 'REQUIRE-MATCH nil nil
@@ -352,7 +352,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((generators (cmake-mngr--get-available-generators))
            (choice (completing-read "Select a generator: "
                                     generators)))
@@ -366,7 +366,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((targets (cmake-mngr--get-available-targets))
            (choice (completing-read "Select a target: "
                                     targets)))
@@ -380,7 +380,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((proj-dir (gethash "Project Dir" project))
            (build-dir (gethash "Build Dir" project))
            (build-dir-name (when build-dir
@@ -406,7 +406,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file)))
@@ -428,7 +428,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find cmake project for this file"))
+      (error "Cannot find CMake project for this file"))
     (let ((build-dir (gethash "Build Dir" project)))
       (when (and build-dir (file-exists-p build-dir))
         (delete-directory build-dir t)))))
