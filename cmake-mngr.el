@@ -411,9 +411,12 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
     (let* ((build-dir (gethash "Build Dir" project))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file)))
+           (vars (when cache-vars (mapcar #'cadr cache-vars)))
            (key (completing-read "Variable: "
-                                 (when cache-vars (mapcar #'car cache-vars))))
-           (dflt (when (and cache-vars key) (car (last (assoc key cache-vars)))))
+                                 (when vars (mapcar #'seq-first vars))))
+           (dflt (when (and vars key) (aref (seq-find (lambda (s) (string= key (seq-first s)))
+                                                      vars)
+                                            2)))
            (val (completing-read "Value: "
                                  (when dflt (list dflt)))))
       (let ((custom-vars (gethash "Custom Vars" project)))
