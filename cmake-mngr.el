@@ -86,7 +86,8 @@ in the form (ID [KEY TYPE VALUE])."
                                      (or (cadr kv) "")))
                   res)
             (setq iter (1+ iter)))))
-      (reverse res))))
+      (sort res (lambda (s1 s2) (string-lessp (aref (cadr s1) 0)
+                                              (aref (cadr s2) 0)))))))
 
 
 (defun cmake-mngr--get-available-generators ()
