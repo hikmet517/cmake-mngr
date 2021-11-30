@@ -11,7 +11,6 @@
 ;; TODO:
 ;; suggestions using cmake vars' types
 ;; test in windows, test without selectrum/helm etc.
-;; use `compile' interface
 ;; add install support
 
 ;;; Code:
@@ -22,6 +21,8 @@
 (require 'seq)
 (require 'subr-x)
 (require 'tabulated-list)
+(require 'ansi-color)
+(require 'compile)
 
 ;;;; Variables
 
@@ -65,6 +66,17 @@ Should be non-nil."
 
 
 ;;;; Functions
+
+;; ANSI-colors in the compilation buffer
+(defun endless/colorize-compilation ()
+  "Colorize from `compilation-filter-start' to `point'."
+  (let ((inhibit-read-only t))
+    (ansi-color-apply-on-region
+     compilation-filter-start (point))))
+
+(add-hook 'compilation-filter-hook
+          #'endless/colorize-compilation)
+
 
 (defun cmake-mngr--parse-cache-file (filepath)
   "Parse given CMakeCache.txt file in FILEPATH as a list of elements
@@ -184,9 +196,10 @@ none, look for if any of the directories listed in
 (defun cmake-mngr--get-project ()
   "Get project's data structure for current buffer.
 
-If it already found before (added to `cmake-mngr-projects') returns
-this.  Otherwise, searches directory structure of current buffer.  If
-found, data is added to `cmake-mngr-projects' and returned, otherwise returns nil."
+If it is already found before (added to `cmake-mngr-projects') returns this.
+Otherwise, searches directory structure of current buffer.
+If found, data is added to `cmake-mngr-projects' and returned,
+otherwise returns nil."
   (declare-function dired-current-directory "dired" ())
   (let* ((filepath (if (equal major-mode 'dired-mode)
                        (progn
@@ -296,6 +309,12 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
         (async-shell-command cmd buf-name)))))
 
 
+(defun cmake-mngr--build-buffer-name (_name-of-mode)
+  (let ((project (cmake-mngr--get-project)))
+    (when project
+      (format cmake-mngr-build-buffer-name (gethash "Root Name" project)))))
+
+
 ;;;###autoload
 (defun cmake-mngr-build ()
   "Build current project."
@@ -304,8 +323,7 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
     (unless project
       (error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
-           (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
-           (buf-name (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
+           (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir))))
       (when (not build-dir)
         (when (yes-or-no-p "Build directory is not set, set now? ")
           (setq build-dir (cmake-mngr-set-build-directory))))
@@ -323,9 +341,9 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
                                (when tgt (list "--target" tgt)))
                              cmake-mngr-global-build-args))
                (cmd (concat "cmake " (combine-and-quote-strings args)))
-               (compilation-buffer-name-function))
+               (compilation-buffer-name-function 'cmake-mngr--build-buffer-name))
           (message "Cmake build command: %s" cmd)
-          (async-shell-command cmd buf-name))))))
+          (compile cmd))))))
 
 
 ;;;###autoload
@@ -358,7 +376,10 @@ found, data is added to `cmake-mngr-projects' and returned, otherwise returns ni
            (choice (completing-read "Select a generator: "
                                     generators)))
       (when (and choice (not (string-equal choice "")))
-        (puthash "Generator" choice project)))))
+        (puthash "Generator" choice project)
+        (when (yes-or-no-p "Need to reconfigure, configure now? ")
+          (cmake-mngr-clear-cache)
+          (cmake-mngr-configure))))))
 
 
 ;;;###autoload
@@ -414,7 +435,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
            (vars (when cache-vars (mapcar #'cadr cache-vars)))
            (key (completing-read "Variable: "
                                  (when vars (mapcar #'seq-first vars))))
-           (dflt (when (and vars key) (aref (seq-find (lambda (s) (string= key (seq-first s)))
+           (dflt (when (and vars key) (aref (seq-find (lambda (s) (string= key (aref s 0)))
                                                       vars)
                                             2)))
            (val (completing-read "Value: "
@@ -436,6 +457,20 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
     (let ((build-dir (gethash "Build Dir" project)))
       (when (and build-dir (file-exists-p build-dir))
         (delete-directory build-dir t)))))
+
+
+;;;###autoload
+(defun cmake-mngr-clear-cache ()
+  "Remove CMakeCache.txt"
+  (interactive)
+  (let ((project (cmake-mngr--get-project)))
+    (unless project
+      (error "Cannot find CMake project for this file"))
+    (let ((build-dir (gethash "Build Dir" project)))
+      (when build-dir
+        (let ((file (expand-file-name "CMakeCache.txt" build-dir)))
+          (when (file-exists-p file)
+            (delete-file file)))))))
 
 
 ;;;###autoload

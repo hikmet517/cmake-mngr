@@ -14,6 +14,7 @@ Provides following commands.
                 cmake-mngr-set-build-directory
                 cmake-mngr-set-variable
                 cmake-mngr-clear-build-directory
+                cmake-mngr-clear-cache
                 cmake-mngr-reset
                 cmake-mngr-create-symlink-to-compile-commands)))
     (dolist (f funs)
@@ -39,6 +40,8 @@ Provides following commands.
 These variables will be passed to cmake during configuration as -DKEY=VALUE.
 
 - **cmake-mngr-clear-build-directory**: Remove current build directory and all the files inside.
+
+- **cmake-mngr-clear-cache**: Remove CMakeCache.txt
 
 - **cmake-mngr-reset**: Reset internal data.
 
