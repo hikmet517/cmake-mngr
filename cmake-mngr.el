@@ -68,14 +68,15 @@ Should be non-nil."
 ;;;; Functions
 
 ;; ANSI-colors in the compilation buffer
-(defun endless/colorize-compilation ()
+;; https://endlessparentheses.com/ansi-colors-in-the-compilation-buffer-output.html
+(defun cmake-mngr--colorize-compilation ()
   "Colorize from `compilation-filter-start' to `point'."
   (let ((inhibit-read-only t))
-    (ansi-color-apply-on-region
-     compilation-filter-start (point))))
+    (goto-char compilation-filter-start)
+    (move-beginning-of-line nil)
+    (ansi-color-apply-on-region (point) (point-max))))
 
-(add-hook 'compilation-filter-hook
-          #'endless/colorize-compilation)
+(add-hook 'compilation-filter-hook #'cmake-mngr--colorize-compilation)
 
 
 (defun cmake-mngr--parse-cache-file (filepath)
