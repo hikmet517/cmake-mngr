@@ -9,9 +9,11 @@
   (setq symbols (sort symbols (lambda (s1 s2) (string-lessp (symbol-name s1)
                                                             (symbol-name s2)))))
   (let ((commands (seq-filter (lambda (s) (and (commandp s)
-                                               (not (string= (symbol-name s) "cmake-mngr-variables-mode"))))
+                                               (not (string= (symbol-name s)
+                                                             "cmake-mngr-variables-mode"))))
                               symbols))
         (variables (seq-filter #'user-variable-p symbols)))
+
     ;; commands
     (progn
       (forward-line 2)

@@ -3,7 +3,7 @@
 ;; Author: Hikmet Altıntaş (hikmet1517@gmail.com)
 ;; Keywords: tools, extensions
 ;; URL: "https://github.com/hikmet517/cmake-mngr.el"
-
+;; Version: 0.1
 ;;; Commentary:
 ;; TODO: Write here
 
