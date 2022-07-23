@@ -5,12 +5,11 @@
 ;; URL: "https://github.com/hikmet517/cmake-mngr.el"
 ;; Version: 0.1
 ;;; Commentary:
-;; TODO: Write here
+;; A convenient interface to cmake commands.
 
 
-;; TODO:
+;;; TODO:
 ;; suggestions using cmake vars' types
-;; test in windows, test without selectrum/helm etc.
 ;; add install support
 
 ;;; Code:
@@ -24,10 +23,12 @@
 (require 'ansi-color)
 (require 'compile)
 
+
 ;;;; Variables
 
 (defvar cmake-mngr-projects (list)
   "Currently opened CMake projects.")
+
 
 ;;;; Constants
 
@@ -39,6 +40,7 @@
 
 (defconst cmake-mngr-build-buffer-name "*cmake-mngr-build <%s>*"
   "Buffer name for the output of build command.")
+
 
 ;;;; User options
 
@@ -80,8 +82,8 @@ Should be non-nil."
 
 
 (defun cmake-mngr--parse-cache-file (filepath)
-  "Parse given CMakeCache.txt file in FILEPATH as a list of elements
-in the form (ID [KEY TYPE VALUE])."
+  "Parse given CMakeCache.txt file in FILEPATH as a list of elements.
+Output is in the form (ID [KEY TYPE VALUE])."
   (when (file-readable-p filepath)
     (let ((content (with-temp-buffer
                      (insert-file-contents filepath)
@@ -231,8 +233,8 @@ otherwise returns nil."
 
 ;;;###autoload
 (defun cmake-mngr-create-symlink-to-compile-commands ()
-  "Create a symlink in project root that points to 'compile_commands.json'
-(needed for `lsp' to work)."
+  "Create a symlink in project root that points to 'compile_commands.json'.
+This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
@@ -311,6 +313,7 @@ otherwise returns nil."
 
 
 (defun cmake-mngr--build-buffer-name (_name-of-mode)
+  "Buffer name function for `compilation-buffer-name-function'."
   (let ((project (cmake-mngr--get-project)))
     (when project
       (format cmake-mngr-build-buffer-name (gethash "Root Name" project)))))
@@ -462,7 +465,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
 
 ;;;###autoload
 (defun cmake-mngr-clear-cache ()
-  "Remove CMakeCache.txt"
+  "Remove CMakeCache.txt file."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
