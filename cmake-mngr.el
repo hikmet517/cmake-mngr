@@ -45,7 +45,7 @@
 ;;;; Variables
 
 (defvar cmake-mngr-projects (list)
-  "Currently opened CMake projects.")
+  "Currently opened CMake projects.  alist of (string . hash-table).")
 
 
 ;;;; Constants
@@ -124,35 +124,28 @@ Output is in the form (ID [KEY TYPE VALUE])."
 
 
 (defun cmake-mngr--get-available-generators ()
-  "Find available generators by parsing the output of 'cmake --help'."
-  (let ((str (shell-command-to-string "cmake --help")))
-    (when str
-      (let* ((ss (replace-regexp-in-string "\n[[:space:]]*=" "=" str))
-             (found (string-match "The following generators are available" ss))
-             (slist (when found (cdr (split-string (substring ss found) "\n" t))))
-             (filt (when slist (seq-filter (lambda (s) (seq-contains-p s ?=)) slist)))
-             (gens (when filt (mapcar (lambda (s) (string-trim
-                                                   (car (split-string s "=" t))))
-                                      filt))))
-        (mapcar (lambda (s) (string-trim-left s "* ")) gens)))))
+  "Find available generators by parsing the output of \"cmake --help\"."
+  (when-let* ((str (shell-command-to-string "cmake --help"))
+              (ss (replace-regexp-in-string "\n[[:space:]]*=" "=" str))
+              (found (string-match "The following generators are available" ss))
+              (slist (cdr (split-string (substring ss found) "\n" t)))
+              (filt (seq-filter (lambda (s) (seq-contains-p s ?=)) slist))
+              (gens (mapcar (lambda (s) (string-trim (car (split-string s "=" t)))) filt)))
+    (mapcar (lambda (s) (string-trim-left s "* ")) gens)))
 
 
 (defun cmake-mngr--get-available-targets ()
-  "Find available targets by parsing 'cmake --build build-dir --help'."
+  "Find available targets by parsing \"cmake --build build-dir --help\"."
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (targets '())
            (cmd (concat "cmake --build " (shell-quote-argument build-dir) " --target help"))
            (str (shell-command-to-string cmd)))
-      (message "%s" (length (split-string str "\n" t)))
       (dolist (line (split-string str "\n" t))
         (when (string-prefix-p "... " line)
-          (setq targets (cons (car
-                               (split-string
-                                (string-trim-left line (regexp-quote "... "))))
-                              targets))))
+          (push (car (split-string (substring line 4))) targets)))
       (reverse targets))))
 
 
@@ -169,7 +162,6 @@ Output is in the form (ID [KEY TYPE VALUE])."
   (let ((dir-iter filepath)
         (dir-found nil)
         (is-top-found nil))
-
     (while (and dir-iter
                 (not (and dir-found
                           is-top-found)))
@@ -251,12 +243,12 @@ otherwise returns nil."
 
 ;;;###autoload
 (defun cmake-mngr-create-symlink-to-compile-commands ()
-  "Create a symlink in project root that points to 'compile_commands.json'.
-This may be needed for `lsp' to work."
+  "Create a symlink in project root that points to \"compile_commands.json\".
+This may be needed for language servers to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((project-dir (gethash "Project Dir" project))
            (build-dir (gethash "Build Dir" project))
            (json-file (when build-dir
@@ -266,7 +258,7 @@ This may be needed for `lsp' to work."
                (file-exists-p build-dir)
                (file-exists-p json-file))
           (start-process "create-symlink" nil "ln" "-s" json-file "-t" project-dir)
-        (error "Cannot found build directory or 'compile_commands.json'")))))
+        (user-error "Cannot found build directory or 'compile_commands.json'")))))
 
 
 (define-derived-mode cmake-mngr-variables-mode tabulated-list-mode "CMake Variables"
@@ -288,11 +280,11 @@ This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
-    (let* ((build-dir (gethash "Build Dir" project))
-           (buf-name (format cmake-mngr-cache-buffer-name (gethash "Root Name" project)))
-           (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
-           (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file))))
+      (user-error "Cannot find CMake project for this file"))
+    (when-let* ((build-dir (gethash "Build Dir" project))
+                (buf-name (format cmake-mngr-cache-buffer-name (gethash "Root Name" project)))
+                (cache-file (expand-file-name "CMakeCache.txt" build-dir))
+                (cache-vars (cmake-mngr--parse-cache-file cache-file)))
       (when cache-vars
         (let ((buf (get-buffer-create buf-name)))
           (display-buffer buf)
@@ -310,7 +302,7 @@ This may be needed for `lsp' to work."
          (build-dir (when project (gethash "Build Dir" project)))
          (buf-name (format cmake-mngr-configure-buffer-name (gethash "Root Name" project))))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (unless build-dir
       (setq build-dir (cmake-mngr-set-build-directory)))
     (when (and build-dir (not (file-exists-p build-dir)))
@@ -332,9 +324,8 @@ This may be needed for `lsp' to work."
 
 (defun cmake-mngr--build-buffer-name (_name-of-mode)
   "Buffer name function for `compilation-buffer-name-function'."
-  (let ((project (cmake-mngr--get-project)))
-    (when project
-      (format cmake-mngr-build-buffer-name (gethash "Root Name" project)))))
+  (when-let ((project (cmake-mngr--get-project)))
+    (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
 
 
 ;;;###autoload
@@ -343,7 +334,7 @@ This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir))))
       (when (not build-dir)
@@ -374,7 +365,7 @@ This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let ((type (completing-read "Select cmake build type: "
                                  '("Debug" "Release" "MinSizeRel" "RelWithDebInfo")
                                  nil 'REQUIRE-MATCH nil nil
@@ -393,11 +384,10 @@ This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((generators (cmake-mngr--get-available-generators))
-           (choice (completing-read "Select a generator: "
-                                    generators)))
-      (when (and choice (not (string-equal choice "")))
+           (choice (completing-read "Select a generator: " generators)))
+      (when (and choice (not (string= choice "")))
         (puthash "Generator" choice project)
         (when (yes-or-no-p "Need to reconfigure, configure now? ")
           (cmake-mngr-clear-cache)
@@ -410,11 +400,10 @@ This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((targets (cmake-mngr--get-available-targets))
-           (choice (completing-read "Select a target: "
-                                    targets)))
-      (when (and choice (not (string-equal choice "")))
+           (choice (completing-read "Select a target: " targets)))
+      (when (and choice (not (string= choice "")))
         (puthash "Target" choice project)))))
 
 
@@ -424,7 +413,7 @@ This may be needed for `lsp' to work."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((proj-dir (gethash "Project Dir" project))
            (build-dir (gethash "Build Dir" project))
            (build-dir-name (when build-dir
@@ -450,7 +439,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let* ((build-dir (gethash "Build Dir" project))
            (cache-file (when build-dir (expand-file-name "CMakeCache.txt" build-dir)))
            (cache-vars (when cache-file (cmake-mngr--parse-cache-file cache-file)))
@@ -475,7 +464,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let ((build-dir (gethash "Build Dir" project)))
       (when (and build-dir (file-exists-p build-dir))
         (delete-directory build-dir t)))))
@@ -487,7 +476,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
-      (error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project for this file"))
     (let ((build-dir (gethash "Build Dir" project)))
       (when build-dir
         (let ((file (expand-file-name "CMakeCache.txt" build-dir)))
@@ -497,7 +486,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
 
 ;;;###autoload
 (defun cmake-mngr-reset ()
-  "Reset internal data."
+  "Reset internal data.  For debugging."
   (interactive)
   (setq cmake-mngr-projects '()))
 

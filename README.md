@@ -1,4 +1,5 @@
 # cmake-mngr.el
+Simple command-line interface for cmake.
 
 <!--
 (let ((symbols '()))
@@ -17,6 +18,7 @@
     ;; commands
     (progn
       (forward-line 2)
+      (delete-region (point) (point-max))
       (insert "\n")
       (insert "## Commands\n")
       (dolist (f commands)
@@ -42,14 +44,14 @@
 
 - **cmake-mngr-clear-build-directory**: Remove current build directory and all the files inside.
 
-- **cmake-mngr-clear-cache**: Remove CMakeCache.txt
+- **cmake-mngr-clear-cache**: Remove CMakeCache.txt file.
 
 - **cmake-mngr-configure**: Configure current project.
 
-- **cmake-mngr-create-symlink-to-compile-commands**: Create a symlink in project root that points to ’compile_commands.json’
-(needed for ‘lsp’ to work).
+- **cmake-mngr-create-symlink-to-compile-commands**: Create a symlink in project root that points to "compile_commands.json".
+This may be needed for language servers to work.
 
-- **cmake-mngr-reset**: Reset internal data.
+- **cmake-mngr-reset**: Reset internal data.  For debugging.
 
 - **cmake-mngr-select-build-type**: Get CMake build type from user.
 
