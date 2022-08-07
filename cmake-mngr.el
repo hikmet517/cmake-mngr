@@ -6,7 +6,7 @@
 ;; Maintainer: Hikmet Altıntaş (hikmet1517@gmail.com)
 ;; Created: 29 Aug 2020
 ;; Keywords: tools, extensions
-;; URL: https://github.com/hikmet517/cmake-mngr.el
+;; URL: https://github.com/hikmet517/cmake-mngr
 ;; Version: 0.2
 ;; Package-Requires: ((seq "2.23") (tabulated-list "1.0"))
 
