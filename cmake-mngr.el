@@ -7,7 +7,7 @@
 ;; Created: 29 Aug 2020
 ;; Keywords: tools, extensions
 ;; URL: https://github.com/hikmet517/cmake-mngr.el
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((seq "2.23") (tabulated-list "1.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
