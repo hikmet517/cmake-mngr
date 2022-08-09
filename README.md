@@ -22,7 +22,7 @@ Simple command-line interface for cmake.
       (insert "\n")
       (insert "## Commands\n")
       (dolist (f commands)
-        (insert "- **" (symbol-name f) "**: ")
+        (insert "- `" (symbol-name f) "`: ")
         (insert (replace-regexp-in-string "\n\n" "\n" (documentation f)) "\n\n")))
 
     ;; variables
@@ -31,7 +31,7 @@ Simple command-line interface for cmake.
       (insert "\n")
       (insert "## Variables\n")
       (dolist (v variables)
-        (insert "- **" (symbol-name v) "**: ")
+        (insert "- `" (symbol-name v) "`: ")
         (insert (replace-regexp-in-string
                  "\n\n"
                  "\n"
@@ -40,37 +40,37 @@ Simple command-line interface for cmake.
 -->
 
 ## Commands
-- **cmake-mngr-build**: Build current project.
+- `cmake-mngr-build`: Build current project.
 
-- **cmake-mngr-clear-build-directory**: Remove current build directory and all the files inside.
+- `cmake-mngr-clear-build-directory`: Remove current build directory and all the files inside.
 
-- **cmake-mngr-clear-cache**: Remove CMakeCache.txt file.
+- `cmake-mngr-clear-cache`: Remove CMakeCache.txt file.
 
-- **cmake-mngr-configure**: Configure current project.
+- `cmake-mngr-configure`: Configure current project.
 
-- **cmake-mngr-create-symlink-to-compile-commands**: Create a symlink in project root that points to "compile_commands.json".
+- `cmake-mngr-create-symlink-to-compile-commands`: Create a symlink in project root that points to "compile_commands.json".
 This may be needed for language servers to work.
 
-- **cmake-mngr-reset**: Reset internal data.  For debugging.
+- `cmake-mngr-reset`: Reset internal data.  For debugging.
 
-- **cmake-mngr-select-build-type**: Get CMake build type from user.
+- `cmake-mngr-select-build-type`: Get CMake build type from user.
 
-- **cmake-mngr-set-build-directory**: Set CMake build directory.
+- `cmake-mngr-set-build-directory`: Set CMake build directory.
 
-- **cmake-mngr-set-generator**: Set generator for current project.
+- `cmake-mngr-set-generator`: Set generator for current project.
 
-- **cmake-mngr-set-target**: Set target for current project.
+- `cmake-mngr-set-target`: Set target for current project.
 
-- **cmake-mngr-set-variable**: Set a CMake variable as KEY=VALUE.
+- `cmake-mngr-set-variable`: Set a CMake variable as KEY=VALUE.
 These variables will be passed to cmake during configuration as -DKEY=VALUE.
 
-- **cmake-mngr-show-cache-variables**: Show CMake cache variables in a buffer.
+- `cmake-mngr-show-cache-variables`: Show CMake cache variables in a buffer.
 
 
 ## Variables
-- **cmake-mngr-build-dir-search-list**: List of directories to search for CMake build directory.
+- `cmake-mngr-build-dir-search-list`: List of directories to search for CMake build directory.
 Should be non-nil.
 
-- **cmake-mngr-global-build-args**: Argument to pass during build.
+- `cmake-mngr-global-build-args`: Argument to pass during build.
 
-- **cmake-mngr-global-configure-args**: Argument to pass during configuration.
+- `cmake-mngr-global-configure-args`: Argument to pass during configuration.
