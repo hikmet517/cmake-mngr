@@ -446,11 +446,14 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
            (vars (when cache-vars (mapcar #'cadr cache-vars)))
            (key (completing-read "Variable: "
                                  (when vars (mapcar #'seq-first vars))))
-           (dflt (when (and vars key) (aref (seq-find (lambda (s) (string= key (aref s 0)))
-                                                      vars)
-                                            2)))
-           (val (completing-read "Value: "
-                                 (when dflt (list dflt)))))
+           (row (when (and vars key) (seq-find (lambda (s) (string= key (aref s 0))) vars)))
+           (dflt (when row (aref row 2)))
+           (val (completing-read (if dflt
+                                     (format "Value (%s): " dflt)
+                                   "Value: ")
+                                 (when (and row (string= (aref row 1) "BOOL"))
+                                   (list "ON" "OFF"))
+                                 nil nil nil nil dflt)))
       (let ((custom-vars (gethash "Custom Vars" project)))
         (when (and custom-vars key val)
           (puthash key val custom-vars)
