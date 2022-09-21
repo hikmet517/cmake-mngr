@@ -451,8 +451,11 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
            (val (completing-read (if dflt
                                      (format "Value (%s): " dflt)
                                    "Value: ")
-                                 (when (and row (string= (aref row 1) "BOOL"))
+                                 (cond
+                                  ((and row (string= (aref row 1) "BOOL"))
                                    (list "ON" "OFF"))
+                                  ((and row (string= (aref row 0) "CMAKE_BUILD_TYPE"))
+                                   (list "Debug" "Release" "RelWithDebInfo" "MinSizeRel")))
                                  nil nil nil nil dflt)))
       (let ((custom-vars (gethash "Custom Vars" project)))
         (when (and custom-vars key val)
