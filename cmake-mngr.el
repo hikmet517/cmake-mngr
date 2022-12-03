@@ -88,9 +88,15 @@ Should be non-nil."
   :type '(repeat string)
   :group 'cmake-mngr)
 
-(defcustom cmake-mngr-build-commands-prepends '()
+(defcustom cmake-mngr-build-command-prepends '()
   "Commands that will be executed before build.
-These commands will be bound using && operator."
+These commands will be concatenated using && operator."
+  :type '(repeat string)
+  :group 'cmake-mngr)
+
+(defcustom cmake-mngr-configure-command-prepends '()
+  "Commands that will be executed before configure.
+These commands will be concatenated using && operator."
   :type '(repeat string)
   :group 'cmake-mngr)
 
@@ -337,7 +343,12 @@ This may be needed for language servers to work."
                                      (gethash "Custom Vars" project))
                             c))
              (all-args (append args cmake-mngr-global-configure-args custom-args))
-             (cmd (concat "cmake " (combine-and-quote-strings all-args))))
+             (config-cmd (concat "cmake " (combine-and-quote-strings all-args)))
+             (cmd (if cmake-mngr-configure-command-prepends
+                      (string-join (append cmake-mngr-configure-command-prepends
+                                           (list config-cmd))
+                                   " && ")
+                    config-cmd)))
         (message "Cmake configure command: %s" cmd)
         (async-shell-command cmd buf-name)))))
 
@@ -374,8 +385,8 @@ This may be needed for language servers to work."
                                (when tgt (list "--target" tgt)))
                              cmake-mngr-global-build-args))
                (build-cmd (concat "cmake " (combine-and-quote-strings args)))
-               (cmd (if cmake-mngr-build-commands-prepends
-                        (string-join (append cmake-mngr-build-commands-prepends
+               (cmd (if cmake-mngr-build-command-prepends
+                        (string-join (append cmake-mngr-build-command-prepends
                                              (list build-cmd))
                                      " && ")
                       build-cmd))
