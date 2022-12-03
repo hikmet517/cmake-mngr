@@ -373,7 +373,7 @@ This may be needed for language servers to work."
                              (let ((tgt (gethash "Target" project)))
                                (when tgt (list "--target" tgt)))
                              cmake-mngr-global-build-args))
-               (build-cmd (list (concat "cmake " (combine-and-quote-strings args))))
+               (build-cmd (concat "cmake " (combine-and-quote-strings args)))
                (cmd (if cmake-mngr-build-commands-prepends
                         (string-join (append cmake-mngr-build-commands-prepends
                                              (list build-cmd))
