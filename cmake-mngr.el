@@ -59,6 +59,10 @@
 (defconst cmake-mngr-build-buffer-name "*cmake-mngr-build <%s>*"
   "Buffer name for the output of build command.")
 
+(defconst cmake-mngr-project-regexp
+  (rx "project"
+      (* (any whitespace "\n"))
+      "("))
 
 ;;;; User options
 
@@ -156,20 +160,30 @@ Output is in the form (ID [KEY TYPE VALUE])."
         (file-name-directory path-with-no-slash)
       nil)))
 
+(defun cmake-mngr--check-cmake-file-is-project (filepath)
+  "Check the file given with FILEPATH to see if it is main cmake file.
+
+Checks if project() statement exists in file.
+If it does, returns the point where the match occurred, else returns nil."
+  (when (file-readable-p filepath)
+    (with-temp-buffer
+      (insert-file-contents filepath)
+      (goto-char (point-min))
+      (re-search-forward cmake-mngr-project-regexp nil t))))
 
 (defun cmake-mngr--find-project-dir (filepath)
   "Find CMake project root for buffer with the path FILEPATH."
   (let ((dir-iter filepath)
         (dir-found nil)
-        (is-top-found nil))
-    (while (and dir-iter
-                (not (and dir-found
-                          is-top-found)))
-      (if (file-exists-p (expand-file-name "CMakeLists.txt" dir-iter))
+        (should-exit nil))
+    (while (not should-exit)
+      (let ((file (expand-file-name "CMakeLists.txt" dir-iter)))
+        (when (cmake-mngr--check-cmake-file-is-project file)
           (setq dir-found dir-iter)
-        (when dir-found
-          (setq is-top-found t)))
-      (setq dir-iter (cmake-mngr--get-parent-dir dir-iter)))
+          (setq should-exit t))
+        (setq dir-iter (cmake-mngr--get-parent-dir dir-iter))
+        (when (not dir-iter)
+          (setq should-exit t))))
     dir-found))
 
 
@@ -466,7 +480,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
 
 ;;;###autoload
 (defun cmake-mngr-clear-build-directory ()
-  "Remove current build directory and all the files inside."
+  "Delete current build directory and all the files inside."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
@@ -478,7 +492,7 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
 
 ;;;###autoload
 (defun cmake-mngr-clear-cache ()
-  "Remove CMakeCache.txt file."
+  "Delete \"CMakeCache.txt\"."
   (interactive)
   (let ((project (cmake-mngr--get-project)))
     (unless project
