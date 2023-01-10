@@ -348,7 +348,8 @@ This may be needed for language servers to work."
                       (string-join (append cmake-mngr-configure-command-prepends
                                            (list config-cmd))
                                    " && ")
-                    config-cmd)))
+                    config-cmd))
+             (default-directory (gethash "Build Dir" project)))
         (message "Cmake configure command: %s" cmd)
         (async-shell-command cmd buf-name)))))
 
@@ -390,7 +391,8 @@ This may be needed for language servers to work."
                                              (list build-cmd))
                                      " && ")
                       build-cmd))
-               (compilation-buffer-name-function 'cmake-mngr--build-buffer-name))
+               (compilation-buffer-name-function 'cmake-mngr--build-buffer-name)
+               (default-directory build-dir))
           (message "Cmake build command: %s" cmd)
           (compile cmd))))))
 
