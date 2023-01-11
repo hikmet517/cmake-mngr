@@ -60,7 +60,9 @@
   "Buffer name for the output of build command.")
 
 (defconst cmake-mngr-project-regexp
-  (rx "project"
+  (rx line-start
+      (* whitespace)
+      "project"
       (* (any whitespace "\n"))
       "("))
 
