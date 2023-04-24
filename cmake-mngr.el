@@ -284,7 +284,8 @@ This may be needed for language servers to work."
                json-file
                (file-exists-p build-dir)
                (file-exists-p json-file))
-          (start-process "create-symlink" nil "ln" "-s" json-file "-t" project-dir)
+          (let ((default-directory project-dir))
+            (start-process "create-symlink" nil "ln" "-s" (string-trim json-file project-dir) "-t" "."))
         (user-error "Cannot found build directory or 'compile_commands.json'")))))
 
 
