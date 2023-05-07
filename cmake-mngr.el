@@ -242,7 +242,7 @@ If found, data is added to `cmake-mngr-projects' and returned,
 otherwise returns nil."
   (declare-function dired-current-directory "dired" ())
   (let* ((filepath (cond
-                    ((equal major-mode 'dired-mode)
+                    ((derived-mode-p 'dired-mode 'magit-status-mode)
                      (progn
                        (require 'dired)
                        (dired-current-directory)))
