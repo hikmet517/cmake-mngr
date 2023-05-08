@@ -241,9 +241,7 @@ Otherwise, searches directory structure of current buffer.
 If found, data is added to `cmake-mngr-projects' and returned,
 otherwise returns nil."
   (declare-function dired-current-directory "dired" ())
-  (let* ((filepath (if (derived-mode-p 'comint-mode 'magit-status-mode 'dired-mode)
-                       default-directory
-                     (buffer-file-name)))
+  (let* ((filepath (expand-file-name default-directory))
          (project-data (when filepath
                          (cdr (assoc
                                (file-name-directory filepath)
