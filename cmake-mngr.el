@@ -349,7 +349,10 @@ This may be needed for language servers to work."
                     config-cmd))
              (default-directory (gethash "Build Dir" project)))
         (message "Cmake configure command: %s" cmd)
-        (async-shell-command cmd buf-name)))))
+        (async-shell-command cmd buf-name)
+        (ignore-errors
+          (with-current-buffer buf-name
+            (setq buffer-read-only t)))))))
 
 
 (defun cmake-mngr--build-buffer-name (_name-of-mode)
