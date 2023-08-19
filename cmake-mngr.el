@@ -302,20 +302,25 @@ This may be needed for language servers to work."
 (defun cmake-mngr-show-cache-variables ()
   "Show CMake cache variables in a buffer."
   (interactive)
-  (let ((project (cmake-mngr--get-project)))
-    (unless project
+  (if-let* ((project (cmake-mngr--get-project))
+            (build-dir (gethash "Build Dir" project))
+            (buf-name (format cmake-mngr-cache-buffer-name (gethash "Root Name" project)))
+            (cache-file (expand-file-name "CMakeCache.txt" build-dir))
+            (cache-vars (cmake-mngr--parse-cache-file cache-file)))
+      (let ((buf (get-buffer-create buf-name)))
+        (display-buffer buf)
+        (set-buffer buf)
+        (cmake-mngr-variables-mode)
+        (setq tabulated-list-entries cache-vars)
+        (tabulated-list-print))
+    (when (null project)
       (user-error "Cannot find CMake project for this file"))
-    (when-let* ((build-dir (gethash "Build Dir" project))
-                (buf-name (format cmake-mngr-cache-buffer-name (gethash "Root Name" project)))
-                (cache-file (expand-file-name "CMakeCache.txt" build-dir))
-                (cache-vars (cmake-mngr--parse-cache-file cache-file)))
-      (when cache-vars
-        (let ((buf (get-buffer-create buf-name)))
-          (display-buffer buf)
-          (set-buffer buf)
-          (cmake-mngr-variables-mode)
-          (setq tabulated-list-entries cache-vars)
-          (tabulated-list-print))))))
+    (when (or (null build-dir)
+              (not (file-exists-p cache-file)))
+      (when (yes-or-no-p "Project is not configured yet, configure now? ")
+        (cmake-mngr-configure)))
+    (when (null cache-vars)
+      (user-error "Cannot parse CMakeCache.txt"))))
 
 
 ;;;###autoload
@@ -377,7 +382,7 @@ This may be needed for language servers to work."
                  (or (not (file-exists-p build-dir))
                      (not cache-file)
                      (not (file-exists-p cache-file))))
-        (when (yes-or-no-p "Need to configure first, configure now? ")
+        (when (yes-or-no-p "Project is not configured yet, configure now? ")
           (cmake-mngr-configure)))
       (when (and build-dir
                  (file-exists-p build-dir)
