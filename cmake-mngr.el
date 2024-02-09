@@ -357,7 +357,8 @@ This may be needed for language servers to work."
         (async-shell-command cmd buf-name)
         (ignore-errors
           (with-current-buffer buf-name
-            (setq buffer-read-only t)))))))
+            (setq buffer-read-only t)
+            (local-set-key (kbd "q") 'quit-window)))))))
 
 
 (defun cmake-mngr--build-buffer-name (_name-of-mode)
