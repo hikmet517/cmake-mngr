@@ -1,8 +1,10 @@
 # cmake-mngr.el
-Simple command-line interface for cmake.
+
+Simple command-line interface for CMake.
 
 <!--
 (let ((symbols '()))
+  (require 'custom)
   (mapatoms (lambda (s)
               (when (string-prefix-p "cmake-mngr-"
                                      (symbol-name s))
@@ -13,14 +15,14 @@ Simple command-line interface for cmake.
                                                (not (string= (symbol-name s)
                                                              "cmake-mngr-variables-mode"))))
                               symbols))
-        (variables (seq-filter #'user-variable-p symbols)))
+        (variables (seq-filter #'custom-variable-p symbols)))
 
     ;; commands
     (progn
       (forward-line 2)
       (delete-region (point) (point-max))
       (insert "\n")
-      (insert "## Commands\n")
+      (insert "## Commands\n\n")
       (dolist (f commands)
         (insert "- `" (symbol-name f) "`: ")
         (insert (replace-regexp-in-string "\n\n" "\n" (documentation f)) "\n\n")))
@@ -29,7 +31,7 @@ Simple command-line interface for cmake.
     (progn
       (forward-line 2)
       (insert "\n")
-      (insert "## Variables\n")
+      (insert "## Variables\n\n")
       (dolist (v variables)
         (insert "- `" (symbol-name v) "`: ")
         (insert (replace-regexp-in-string
@@ -40,11 +42,16 @@ Simple command-line interface for cmake.
 -->
 
 ## Commands
+
+- `cmake-mngr-browse-command-document`: Browse documentation for given COMMAND.
+
+- `cmake-mngr-browse-document`: Browser documentation for given COMMAND.
+
 - `cmake-mngr-build`: Build current project.
 
-- `cmake-mngr-clear-build-directory`: Remove current build directory and all the files inside.
+- `cmake-mngr-clear-build-directory`: Delete current build directory and all the files inside.
 
-- `cmake-mngr-clear-cache`: Remove CMakeCache.txt file.
+- `cmake-mngr-clear-cache`: Delete "CMakeCache.txt".
 
 - `cmake-mngr-configure`: Configure current project.
 
@@ -68,8 +75,15 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE.
 
 
 ## Variables
+
+- `cmake-mngr-build-command-prepends`: Commands that will be executed before build.
+These commands will be concatenated using && operator.
+
 - `cmake-mngr-build-dir-search-list`: List of directories to search for CMake build directory.
 Should be non-nil.
+
+- `cmake-mngr-configure-command-prepends`: Commands that will be executed before configure.
+These commands will be concatenated using && operator.
 
 - `cmake-mngr-global-build-args`: Argument to pass during build.
 

@@ -66,6 +66,9 @@
       (* (any whitespace "\n"))
       "("))
 
+(defconst cmake-mngr-command-doc-url "https://cmake.org/cmake/help/latest/command/%s.html"
+  "URL for CMake command documentation.")
+
 ;;;; User options
 
 (defgroup cmake-mngr nil
@@ -540,6 +543,18 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
   "Reset internal data.  For debugging."
   (interactive)
   (setq cmake-mngr-projects '()))
+
+
+;;;###autoload
+(defun cmake-mngr-browse-command-document (command)
+  "Browse documentation for given COMMAND."
+  (interactive (list
+                (let ((w (if (use-region-p)
+                             (buffer-substring-no-properties (region-beginning) (region-end))
+                           (thing-at-point 'symbol t))))
+                  (if w (read-string (format "Command (%s): " w) nil nil w)
+                    (read-string "Command: ")))))
+  (browse-url (format cmake-mngr-command-doc-url command)))
 
 
 (provide 'cmake-mngr)
