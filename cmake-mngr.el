@@ -176,9 +176,10 @@ Output is in the form (ID [KEY TYPE VALUE])."
 (defun cmake-mngr--get-parent-dir (path)
   "Get parent dir of given PATH."
   (let ((path-with-no-slash (string-trim-right path "/")))
-    (if path-with-no-slash
-        (file-name-directory path-with-no-slash)
-      nil)))
+    (when path-with-no-slash
+      (let ((parent (file-name-directory path-with-no-slash)))
+        (when (not (string= parent path-with-no-slash))
+          parent)))))
 
 (defun cmake-mngr--check-cmake-file-is-project (filepath)
   "Check the file given with FILEPATH to see if it is main cmake file.
