@@ -69,6 +69,9 @@
 (defconst cmake-mngr-command-doc-url "https://cmake.org/cmake/help/latest/command/%s.html"
   "URL for CMake command documentation.")
 
+(defconst cmake-mngr-module-doc-url "https://cmake.org/cmake/help/latest/module/%s.html"
+  "URL for CMake module documentation.")
+
 ;;;; User options
 
 (defgroup cmake-mngr nil
@@ -243,7 +246,6 @@ If it is already found before (added to `cmake-mngr-projects') returns this.
 Otherwise, searches directory structure of current buffer.
 If found, data is added to `cmake-mngr-projects' and returned,
 otherwise returns nil."
-  (declare-function dired-current-directory "dired" ())
   (let* ((filepath (expand-file-name default-directory))
          (project-data (when filepath
                          (cdr (assoc
@@ -366,7 +368,7 @@ This may be needed for language servers to work."
 
 (defun cmake-mngr--build-buffer-name (_name-of-mode)
   "Buffer name function for `compilation-buffer-name-function'."
-  (when-let ((project (cmake-mngr--get-project)))
+  (when-let* ((project (cmake-mngr--get-project)))
     (format cmake-mngr-build-buffer-name (gethash "Root Name" project))))
 
 
@@ -555,6 +557,18 @@ These variables will be passed to cmake during configuration as -DKEY=VALUE."
                   (if w (read-string (format "Command (%s): " w) nil nil w)
                     (read-string "Command: ")))))
   (browse-url (format cmake-mngr-command-doc-url command)))
+
+
+;;;###autoload
+(defun cmake-mngr-browse-module-document (module)
+  "Browse documentation for given MODULE."
+  (interactive (list
+                (let ((w (if (use-region-p)
+                             (buffer-substring-no-properties (region-beginning) (region-end))
+                           (thing-at-point 'symbol t))))
+                  (if w (read-string (format "Command (%s): " w) nil nil w)
+                    (read-string "Command: ")))))
+  (browse-url (format cmake-mngr-module-doc-url module)))
 
 
 (provide 'cmake-mngr)

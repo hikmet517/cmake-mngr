@@ -45,7 +45,7 @@ Simple command-line interface for CMake.
 
 - `cmake-mngr-browse-command-document`: Browse documentation for given COMMAND.
 
-- `cmake-mngr-browse-document`: Browser documentation for given COMMAND.
+- `cmake-mngr-browse-module-document`: Browse documentation for given MODULE.
 
 - `cmake-mngr-build`: Build current project.
 
