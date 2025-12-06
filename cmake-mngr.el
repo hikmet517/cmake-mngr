@@ -1,11 +1,11 @@
 ;;; cmake-mngr.el --- Manage cmake projects -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020-2022 Hikmet Altıntaş
+;; Copyright (C) 2020-2025 Hikmet Altıntaş
 
 ;; Author: Hikmet Altıntaş (hikmet1517@gmail.com)
 ;; Maintainer: Hikmet Altıntaş (hikmet1517@gmail.com)
 ;; Created: 29 Aug 2020
-;; Keywords: tools, extensions
+;; Keywords: tools, processes, cmake
 ;; URL: https://github.com/hikmet517/cmake-mngr
 ;; Version: 0.2
 ;; Package-Requires: ((seq "2.23") (tabulated-list "1.0"))
