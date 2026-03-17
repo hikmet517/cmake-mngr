@@ -224,20 +224,9 @@ If it does, returns the point where the match occurred, else returns nil."
 First, search for sub-directories that contain 'CMakeCache.txt', If there is
 none, look for if any of the directories listed in
 `cmake-mngr-build-dir-search-list' exists.  If nothing found return nil."
-  (let ((build-dir nil)
-        (sub-dirs (cmake-mngr--get-sub-dirs project-dir)))
-    ;; search for sub directories that contain cache file
-    (setq build-dir (seq-find (lambda (s)
-                                (file-exists-p (expand-file-name "CMakeCache.txt" s)))
-                              sub-dirs))
-    ;; search for cmake-mngr-build-dir-search-list
-    (unless build-dir
-      (setq build-dir (seq-find #'file-exists-p
-                                (mapcar (lambda (s)
-                                          (file-name-as-directory
-                                           (expand-file-name s project-dir)))
-                                        cmake-mngr-build-dir-search-list))))
-    build-dir))
+  (seq-find (lambda (s)
+              (file-exists-p (expand-file-name "CMakeCache.txt" s)))
+            (cmake-mngr--get-sub-dirs project-dir)))
 
 
 (defun cmake-mngr--get-project ()
