@@ -324,9 +324,9 @@ This may be needed for language servers to work."
   (interactive)
   (let* ((project (cmake-mngr--get-project))
          (build-dir (when project (gethash "Build Dir" project)))
-         (buf-name (format cmake-mngr-configure-buffer-name (gethash "Root Name" project))))
+         (buf-name (when project (format cmake-mngr-configure-buffer-name (gethash "Root Name" project)))))
     (unless project
-      (user-error "Cannot find CMake project for this file"))
+      (user-error "Cannot find CMake project"))
     (unless build-dir
       (setq build-dir (cmake-mngr-set-build-directory)))
     (when (and build-dir (not (file-exists-p build-dir)))
